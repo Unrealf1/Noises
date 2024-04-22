@@ -1,0 +1,77 @@
+cmake_minimum_required(VERSION 3.13)
+
+project(noises)
+
+set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+SET(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+if(MSVC)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Zc:preprocessor")
+endif()
+
+include(cmake/CPM.cmake)
+
+add_library(project_options INTERFACE)
+add_library(project_warnings INTERFACE)
+
+include(cmake/CompilerWarnings.cmake)
+set_project_warnings(project_warnings)
+
+include(cmake/Sanitizers.cmake)
+enable_sanitizers(project_options)
+
+CPMAddPackage("gh:gabime/spdlog@1.13.0")
+CPMAddPackage(
+  NAME allegro5
+  VERSION 5.2.9.1
+  GITHUB_REPOSITORY liballeg/allegro5
+  GIT_TAG 5.2.9.1
+  OPTIONS
+  "WANT_PHYSFS OFF"
+  "WANT_VIDEO OFF"
+  "WANT_DOCS OFF"
+  "WANT_DOCS_HTML OFF"
+  "WANT_DOCS_MAN OFF"
+  "WANT_DEMO OFF"
+  "WANT_EXAMPLES OFF"
+  "WANT_POPUP_EXAMPLES OFF"
+  "WANT_TESTS OFF"
+  "WANT_NATIVE_DIALOG OFF"
+  "SHARED OFF"
+)
+
+
+get_target_property(allegro_includes allegro INCLUDE_DIRECTORIES)
+foreach(ADDON font image color primitives)
+    target_include_directories("allegro_${ADDON}" INTERFACE "${allegro5_SOURCE_DIR}/addons/${ADDON}")
+endforeach()
+
+CPMAddPackage("gh:aiekick/ImGuiFileDialog@0.6.5")
+target_compile_definitions(ImGuiFileDialog PRIVATE USE_STD_FILESYSTEM=1)
+target_link_libraries(ImGuiFileDialog PUBLIC imgui)
+
+file(GLOB SOURCES_IMGUI external/imgui/*.[ch]pp)
+add_library(imgui STATIC ${SOURCES_IMGUI} external/imgui/backends/imgui_impl_allegro5.cpp)
+target_include_directories(imgui PUBLIC external/imgui)
+target_include_directories(imgui SYSTEM PRIVATE ${allegro_includes})
+target_link_libraries(imgui PUBLIC allegro allegro_font allegro_image allegro_color allegro_primitives)
+
+SET(EXECUTABLE_OUTPUT_PATH ${CMAKE_BINARY_DIR}/bin)
+SET(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+SET(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+SET(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+
+file(GLOB_RECURSE NOISES_SOURCES . noises/*.[ch]pp)
+add_library(noises STATIC ${NOISES_SOURCES})
+target_include_directories(noises PUBLIC noises)
+
+file(GLOB_RECURSE VISUAL_SOURCES . visual/*.[ch]pp)
+add_executable(visual ${VISUAL_SOURCES})
+target_include_directories(visual PUBLIC visual external)
+target_include_directories(visual SYSTEM PRIVATE ${allegro_includes})
+target_link_libraries(visual PUBLIC noises spdlog allegro allegro_primitives allegro_font imgui ImGuiFileDialog)
+#get_target_property(allegro_includes allegro INCLUDE_DIRECTORIES)
+#target_include_directories(visual SYSTEM PUBLIC ${allegro_includes})
