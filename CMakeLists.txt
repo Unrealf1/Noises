@@ -65,8 +65,8 @@ target_compile_definitions(flecs_static PUBLIC
   #  FLECS_NO_ALERTS  -- needed somewhere, don't know where
   FLECS_NO_LOG
   FLECS_NO_JOURNAL
-  FLECS_NO_APP
-  FLECS_NO_OS_API_IMPL)
+  FLECS_NO_APP)
+  #  FLECS_NO_OS_API_IMPL) -- will just crash at runtime without this
 
 get_target_property(allegro_includes allegro INCLUDE_DIRECTORIES)
 foreach(ADDON font image color primitives)

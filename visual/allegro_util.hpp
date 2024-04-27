@@ -36,6 +36,12 @@ public:
         other.al_pointer = nullptr;
         return *this;
     }
+
+    AllegroDecorator(AllegroDecorator&& other) {
+        al_pointer = other.al_pointer;
+        other.al_pointer = nullptr;
+    }
+
 public:
     Raw* get_raw() {
         return al_pointer;

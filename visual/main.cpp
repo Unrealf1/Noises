@@ -1,40 +1,21 @@
-#include <noises/noises.hpp>
-
-#include <render.hpp>
-
+#include <stop.hpp>
 #include <flecs.h>
-#include <spdlog/spdlog.h>
 
-struct Position{
-  float x, y;
-};
+#include <ecs/render_module.hpp>
+#include <ecs/display_module.hpp>
 
-struct Velocity{
-  float x, y;
-};
+
+void import_modules(flecs::world& ecs) {
+  ecs.import<RenderModule>();
+  ecs.import<DisplayModule>();
+}
 
 int main() {
-  spdlog::info("visualization: noises version is {}\n", NOISES_VERSION);
   flecs::world ecs;
+  import_modules(ecs);
 
-  flecs::system sys = ecs.system<Position, const Velocity>("Move")
-    .each([](Position& p, const Velocity &v) {
-        // Each is invoked for each entity
-        p.x += v.x;
-        p.y += v.y;
-    });
-
-
-
-  render::init();
-
-  auto beforeFrameSource = render::get_before_frame_event_source();
-  auto drawFrameSource = render::get_draw_frame_event_source();
-
-  auto display = al_create_display(200, 200);
-
-  render::render_loop(display);
-
-  render::uninit();
+  while (!app::should_stop()) {
+    ecs.progress();
+  }
 }
 

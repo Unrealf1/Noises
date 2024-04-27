@@ -6,10 +6,13 @@
 
 * Visualization
   * Render loop
-    * Create a window
+    + init/uninit render
+    + start frame / end frame
+    + init/uninit window
+    + react to window changes & stop app request
+    - user input reaction systems
     - Init texture
     - Draw texture
-    - Repeat
   - UI via imgui
   - Render grid whith colored cells
   - Adjustable grid size
