@@ -33,13 +33,13 @@ namespace render {
 
   void start_frame() {
     ALLEGRO_USER_EVENT event{};
-    al_emit_user_event(&s_before_frame, &event, nullptr);
-    al_clear_color(al_map_rgb(0, 0, 0));
+    //al_emit_user_event(&s_before_frame, &event, nullptr);
+    al_clear_to_color(al_map_rgb(0, 0, 0));
   }
 
   void draw_frame() {
     ALLEGRO_USER_EVENT event{};
-    al_emit_user_event(&s_draw_frame, &event, nullptr);
+    //al_emit_user_event(&s_draw_frame, &event, nullptr);
   }
 
   void finish_frame() {

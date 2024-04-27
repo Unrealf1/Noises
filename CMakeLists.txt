@@ -43,6 +43,30 @@ CPMAddPackage(
   "SHARED OFF"
 )
 
+CPMAddPackage(
+  NAME flecs
+  VERSION 3.2.11
+  GITHUB_REPOSITORY SanderMertens/flecs
+  GIT_TAG v3.2.11
+  OPTIONS
+  "FLECS_SHARED OFF"
+)
+target_compile_definitions(flecs_static PUBLIC
+  FLECS_NO_HTTP
+  FLECS_NO_JSON
+  FLECS_NO_REST
+  #  FLECS_NO_PARSER -- needed somewhere, don't know where
+  FLECS_NO_PLECS
+  #  FLECS_NO_RULES -- needed somewhere, don't know where
+  FLECS_NO_SNAPSHOT
+  FLECS_NO_STATS
+  FLECS_NO_MONITOR
+  #  FLECS_NO_METRICS -- needed somewhere, don't know where
+  #  FLECS_NO_ALERTS  -- needed somewhere, don't know where
+  FLECS_NO_LOG
+  FLECS_NO_JOURNAL
+  FLECS_NO_APP
+  FLECS_NO_OS_API_IMPL)
 
 get_target_property(allegro_includes allegro INCLUDE_DIRECTORIES)
 foreach(ADDON font image color primitives)
@@ -72,6 +96,7 @@ file(GLOB_RECURSE VISUAL_SOURCES . visual/*.[ch]pp)
 add_executable(visual ${VISUAL_SOURCES})
 target_include_directories(visual PUBLIC visual external)
 target_include_directories(visual SYSTEM PRIVATE ${allegro_includes})
-target_link_libraries(visual PUBLIC noises spdlog allegro allegro_primitives allegro_font imgui ImGuiFileDialog)
+target_link_libraries(visual PUBLIC flecs::flecs_static noises spdlog allegro allegro_primitives allegro_font imgui ImGuiFileDialog)
+
 #get_target_property(allegro_includes allegro INCLUDE_DIRECTORIES)
 #target_include_directories(visual SYSTEM PUBLIC ${allegro_includes})
