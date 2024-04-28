@@ -3,11 +3,13 @@
 
 #include <ecs/render_module.hpp>
 #include <ecs/display_module.hpp>
+#include <ecs/gui_module.hpp>
 
 
 void import_modules(flecs::world& ecs) {
   ecs.import<RenderModule>();
   ecs.import<DisplayModule>();
+  ecs.import<GuiModule>();
 }
 
 int main() {

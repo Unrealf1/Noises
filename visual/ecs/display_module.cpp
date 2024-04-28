@@ -17,12 +17,15 @@ namespace phase {
 struct SystemEvents : public EventQueue {
   SystemEvents(ALLEGRO_DISPLAY* display) : EventQueue() {
     register_source(al_get_display_event_source(display));
+    register_source(al_get_mouse_event_source());
+    register_source(al_get_keyboard_event_source());
   }
 
   void process() {
     while (!empty()) {
       ALLEGRO_EVENT event;
       get(event);
+
       if (event.type == ALLEGRO_EVENT_DISPLAY_CLOSE) {
         app::stop();
         break;
@@ -30,6 +33,14 @@ struct SystemEvents : public EventQueue {
         ImGui_ImplAllegro5_InvalidateDeviceObjects();
         al_acknowledge_resize(event.display.source);
         ImGui_ImplAllegro5_CreateDeviceObjects();
+      }
+
+      ImGui_ImplAllegro5_ProcessEvent(&event);
+      if (event.any.source == al_get_mouse_event_source() && ImGui::GetIO().WantCaptureMouse) {
+        continue;
+      }
+      if (event.any.source == al_get_keyboard_event_source() && ImGui::GetIO().WantCaptureKeyboard) {
+        continue;
       }
     }
   }

@@ -10,10 +10,10 @@
     + start frame / end frame
     + init/uninit window
     + react to window changes & stop app request
-    - user input reaction systems
     - Init texture
     - Draw texture
-  - UI via imgui
+  + UI via imgui
+  - user input reaction systems
   - Render grid whith colored cells
   - Adjustable grid size
   - Pan over grid
