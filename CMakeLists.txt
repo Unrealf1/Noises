@@ -8,11 +8,24 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 SET(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-if(MSVC)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Zc:preprocessor")
+include(cmake/CPM.cmake)
+
+SET(ALLEGRO_SHARED_OPTION "ON")
+if (WIN32)
+  SET(EXECUTABLE_OUTPUT_PATH ${CMAKE_BINARY_DIR}/bin)
+  SET(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+  SET(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+  SET(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+  SET(ALLEGRO_SHARED_OPTION "ON") # I could not make allegro work as a static lib on windows :(
+elseif(UNIX)
+  SET(EXECUTABLE_OUTPUT_PATH ${CMAKE_BINARY_DIR}/bin)
+  SET(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+  SET(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+  SET(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+else()
+  message(WARNING "Unknown platform. Don't know where to place binary files")
 endif()
 
-include(cmake/CPM.cmake)
 
 add_library(project_options INTERFACE)
 add_library(project_warnings INTERFACE)
@@ -40,7 +53,7 @@ CPMAddPackage(
   "WANT_POPUP_EXAMPLES OFF"
   "WANT_TESTS OFF"
   "WANT_NATIVE_DIALOG OFF"
-  "SHARED OFF"
+  "SHARED ${ALLEGRO_SHARED_OPTION}"
 )
 
 CPMAddPackage(
@@ -65,8 +78,8 @@ target_compile_definitions(flecs_static PUBLIC
   #  FLECS_NO_ALERTS  -- needed somewhere, don't know where
   FLECS_NO_LOG
   FLECS_NO_JOURNAL
+  #  FLECS_NO_OS_API_IMPL -- will just crash at runtime without this
   FLECS_NO_APP)
-  #  FLECS_NO_OS_API_IMPL) -- will just crash at runtime without this
 
 get_target_property(allegro_includes allegro INCLUDE_DIRECTORIES)
 foreach(ADDON font image color primitives)
@@ -83,10 +96,9 @@ target_include_directories(imgui PUBLIC external/imgui)
 target_include_directories(imgui SYSTEM PRIVATE ${allegro_includes})
 target_link_libraries(imgui PUBLIC allegro allegro_font allegro_image allegro_color allegro_primitives)
 
-SET(EXECUTABLE_OUTPUT_PATH ${CMAKE_BINARY_DIR}/bin)
-SET(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
-SET(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
-SET(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+if(MSVC)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Zc:preprocessor")
+endif()
 
 file(GLOB_RECURSE NOISES_SOURCES . noises/*.[ch]pp)
 add_library(noises STATIC ${NOISES_SOURCES})
@@ -97,6 +109,3 @@ add_executable(visual ${VISUAL_SOURCES})
 target_include_directories(visual PUBLIC visual external)
 target_include_directories(visual SYSTEM PRIVATE ${allegro_includes})
 target_link_libraries(visual PUBLIC flecs::flecs_static noises spdlog allegro allegro_primitives allegro_font imgui ImGuiFileDialog)
-
-#get_target_property(allegro_includes allegro INCLUDE_DIRECTORIES)
-#target_include_directories(visual SYSTEM PUBLIC ${allegro_includes})
