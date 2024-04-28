@@ -52,7 +52,7 @@ struct Bitmap : public AllegroDecorator<ALLEGRO_BITMAP, Bitmap> {
     using AllegroDecorator::AllegroDecorator;
     using Raw = ALLEGRO_BITMAP;
 
-    static Raw* init(int w, int h);
+    static Raw* init(int w, int h, int additional_flags = 0);
     static void destroy(Raw*);
 
     int height();

@@ -1,6 +1,6 @@
 #include "render_module.hpp"
 
-#include <render.hpp>
+#include <render/render.hpp>
 
 static flecs::entity s_BeforeRender;
 static flecs::entity s_Render;

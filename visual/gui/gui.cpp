@@ -16,6 +16,7 @@ constexpr int maxBufferSize = 100;
 static char buffer[maxBufferSize];
 
 void TestMenu::draw() {
+  ImGui::Text("FPS = %f", ImGui::GetIO().Framerate);
   if (ImGui::Button("Test button")) {
     spdlog::info("test button pressed! Now buffer is \"{}\"", std::string_view(buffer));
   }

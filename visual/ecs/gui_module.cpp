@@ -2,7 +2,7 @@
 
 #include <allegro_util.hpp>
 #include <ecs/render_module.hpp>
-#include <gui.hpp>
+#include <gui/gui.hpp>
 #include <imgui_inc.hpp>
 
 
@@ -42,11 +42,5 @@ GuiModule::GuiModule(flecs::world& ecs) {
     .iter([](flecs::iter&){
       ImGui::Render();
       ImGui_ImplAllegro5_RenderDrawData(ImGui::GetDrawData());
-    });
-
-  ecs.entity()
-    .set<GuiMenu>(GuiMenu{
-      .title = "Test menu",
-      .contents = std::unique_ptr<TestMenu>(new TestMenu())
     });
 }

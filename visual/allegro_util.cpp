@@ -1,8 +1,12 @@
 #include "allegro_util.hpp"
 
 
-ALLEGRO_BITMAP* Bitmap::init(int w, int h) {
-    return al_create_bitmap(w, h);
+ALLEGRO_BITMAP* Bitmap::init(int w, int h, int additional_flags) {
+    auto oldFlags = al_get_new_bitmap_flags();
+    al_set_new_bitmap_flags(oldFlags | additional_flags);
+    auto bitmap = al_create_bitmap(w, h);
+    al_set_new_bitmap_flags(oldFlags);
+    return bitmap;
 }
 
 void Bitmap::destroy(ALLEGRO_BITMAP* bitmap) {

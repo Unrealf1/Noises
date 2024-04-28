@@ -2,7 +2,7 @@
 #include "render_module.hpp"
 
 #include <allegro_util.hpp>
-#include <stop.hpp>
+#include <app/stop.hpp>
 #include <imgui_inc.hpp>
 
 
@@ -44,10 +44,6 @@ struct SystemEvents : public EventQueue {
       }
     }
   }
-};
-
-struct DisplayHolder {
-  ALLEGRO_DISPLAY* display;
 };
 
 DisplayModule::DisplayModule(flecs::world& ecs) {
