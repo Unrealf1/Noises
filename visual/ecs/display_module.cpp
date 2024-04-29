@@ -21,7 +21,7 @@ struct SystemEvents : public EventQueue {
     register_source(al_get_keyboard_event_source());
   }
 
-  void process() {
+  void process(flecs::world& ecs) {
     while (!empty()) {
       ALLEGRO_EVENT event;
       get(event);
@@ -36,11 +36,42 @@ struct SystemEvents : public EventQueue {
       }
 
       ImGui_ImplAllegro5_ProcessEvent(&event);
-      if (event.any.source == al_get_mouse_event_source() && ImGui::GetIO().WantCaptureMouse) {
-        continue;
+      if (event.any.source == al_get_mouse_event_source()) {
+        if (ImGui::GetIO().WantCaptureMouse) {
+          continue;
+        }
+
+        if (event.type == ALLEGRO_EVENT_MOUSE_AXES) {
+          auto ecsEvent = ecs.entity()
+            .emplace<EventMouseAxes>(event.mouse);
+          ecs.event(ecsEvent).emit();
+        } else if (event.type == ALLEGRO_EVENT_MOUSE_BUTTON_DOWN) {
+          auto ecsEvent = ecs.entity()
+            .emplace<EventMouseButtonDown>(event.mouse);
+          ecs.event(ecsEvent).emit();
+        } else if (event.type == ALLEGRO_EVENT_MOUSE_BUTTON_UP) {
+          auto ecsEvent = ecs.entity()
+            .emplace<EventMouseButtonUp>(event.mouse);
+          ecs.event(ecsEvent).emit();
+        } else if (event.type == ALLEGRO_EVENT_MOUSE_ENTER_DISPLAY) {
+          auto ecsEvent = ecs.entity()
+            .emplace<EventMouseEnterDisplay>(event.mouse);
+          ecs.event(ecsEvent).emit();
+        } else if (event.type == ALLEGRO_EVENT_MOUSE_LEAVE_DISPLAY) {
+          auto ecsEvent = ecs.entity()
+            .emplace<EventMouseLeaveDisplay>(event.mouse);
+          ecs.event(ecsEvent).emit();
+        } else if (event.type == ALLEGRO_EVENT_MOUSE_WARPED) {
+          auto ecsEvent = ecs.entity()
+            .emplace<EventMouseWarped>(event.mouse);
+          ecs.event(ecsEvent).emit();
+        }
       }
-      if (event.any.source == al_get_keyboard_event_source() && ImGui::GetIO().WantCaptureKeyboard) {
-        continue;
+
+      if (event.any.source == al_get_keyboard_event_source()) {
+        if (ImGui::GetIO().WantCaptureKeyboard) {
+          continue;
+        }
       }
     }
   }
@@ -65,8 +96,8 @@ DisplayModule::DisplayModule(flecs::world& ecs) {
 
   ecs.system<SystemEvents>("process_system events")
     .kind(phase::SystemEvents())
-    .each([](SystemEvents& events) {
-       events.process();
+    .each([&ecs](SystemEvents& events) {
+       events.process(ecs);
     });
 
   ecs.observer<DisplayHolder>()

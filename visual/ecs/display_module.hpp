@@ -8,6 +8,13 @@ namespace phase {
   flecs::entity SystemEvents();
 }
 
+struct EventMouseAxes : public ALLEGRO_MOUSE_EVENT { };
+struct EventMouseButtonDown : public ALLEGRO_MOUSE_EVENT { };
+struct EventMouseButtonUp : public ALLEGRO_MOUSE_EVENT { };
+struct EventMouseEnterDisplay : public ALLEGRO_MOUSE_EVENT { };
+struct EventMouseLeaveDisplay : public ALLEGRO_MOUSE_EVENT { };
+struct EventMouseWarped : public ALLEGRO_MOUSE_EVENT { };
+
 struct DisplayHolder {
   ALLEGRO_DISPLAY* display;
 };

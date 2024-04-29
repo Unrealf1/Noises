@@ -4,11 +4,13 @@
 #include <render/noise_texture.hpp>
 #include <ecs/render_module.hpp>
 #include <ecs/display_module.hpp>
+#include <ecs/texture_inspection_module.hpp>
 #include <random>
 #include <spdlog/spdlog.h>
 
 
 flecs::query<DisplayHolder> s_display_query;
+flecs::query<InspectionState> s_inspection_state_query;
 
 void create_systems(flecs::world& ecs) {
   s_display_query = ecs.query<DisplayHolder>();
@@ -18,7 +20,9 @@ void create_systems(flecs::world& ecs) {
     .kind(phase::Render())
     .each([&](NoiseTexture& texture){
       s_display_query.each([&](const DisplayHolder& holder){
-        texture.draw(holder.display);
+        s_inspection_state_query.each([&](const InspectionState& inspectionState){
+          texture.draw(holder.display, inspectionState);
+        });
       });
     });
 
@@ -54,8 +58,6 @@ void create_systems(flecs::world& ecs) {
           auto g = distr(eng) ? 255 : 0;
           auto b = distr(eng) ? 255 : 0;
           texture.set(x, y, al_map_rgb(r, g, b));
-          //texture.set(x, y, x + y < 100 ? white : black);
-          //texture.set(x, y, al_map_rgb(x, y, 0));
         }
       }
       spdlog::info("end update");
