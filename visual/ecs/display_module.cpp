@@ -10,6 +10,7 @@
 
 
 static flecs::entity s_SystemEvents;
+static flecs::entity s_InputEventReceiver;
 
 namespace phase {
   flecs::entity SystemEvents() {
@@ -49,17 +50,11 @@ void SystemEvents::process(flecs::world& ecs) {
         continue;
       }
       
-      flecs::entity eventReceiver{};
-      s_inspection_state_query.each([&eventReceiver](flecs::entity e, const InspectionState&){
-        spdlog::info("found inspection state entity");
-        eventReceiver = e;
-      });
+      flecs::entity eventReceiver = get_input_event_receiver();
 
       if (event.type == ALLEGRO_EVENT_MOUSE_AXES) {
-        spdlog::info("sending axis change to <{}>. dz is {}", eventReceiver, event.mouse.dz);
         ecs.event<EventMouseAxes>()
           .ctx(EventMouseAxes{event.mouse})
-          .id<InspectionState>()
           .entity(eventReceiver)
           .emit();
       } else if (event.type == ALLEGRO_EVENT_MOUSE_BUTTON_DOWN) {
@@ -98,6 +93,9 @@ void SystemEvents::process(flecs::world& ecs) {
   }
 }
 
+flecs::entity get_input_event_receiver() {
+  return s_InputEventReceiver;
+}
 
 DisplayModule::DisplayModule(flecs::world& ecs) {
   al_set_new_display_flags(ALLEGRO_RESIZABLE);
@@ -105,6 +103,7 @@ DisplayModule::DisplayModule(flecs::world& ecs) {
   ImGui_ImplAllegro5_Init(display);
 
   s_inspection_state_query = ecs.query<InspectionState>();
+  s_InputEventReceiver = ecs.entity();
 
   ecs.module<DisplayModule>();   
 

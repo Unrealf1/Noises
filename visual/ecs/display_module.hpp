@@ -15,6 +15,8 @@ struct EventMouseEnterDisplay : public ALLEGRO_MOUSE_EVENT { };
 struct EventMouseLeaveDisplay : public ALLEGRO_MOUSE_EVENT { };
 struct EventMouseWarped : public ALLEGRO_MOUSE_EVENT { };
 
+flecs::entity get_input_event_receiver();
+
 struct DisplayHolder {
   ALLEGRO_DISPLAY* display;
 };
