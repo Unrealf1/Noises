@@ -9,8 +9,8 @@
 #include <spdlog/spdlog.h>
 
 
-flecs::query<DisplayHolder> s_display_query;
-flecs::query<InspectionState> s_inspection_state_query;
+static flecs::query<DisplayHolder> s_display_query;
+static flecs::query<InspectionState> s_inspection_state_query;
 
 void create_systems(flecs::world& ecs) {
   s_display_query = ecs.query<DisplayHolder>();
@@ -41,10 +41,9 @@ void create_systems(flecs::world& ecs) {
 
 
   ecs.system<NoiseTexture>("Update noise texture")
-    .interval(10.0) // Run at 1Hz
+    .interval(3.0) // Run at 1Hz
     .kind(flecs::OnUpdate)
     .each([](NoiseTexture& texture){
-      spdlog::info("start update");
       std::random_device dev{};
       std::default_random_engine eng(dev());
       std::bernoulli_distribution distr(0.5);
@@ -61,7 +60,6 @@ void create_systems(flecs::world& ecs) {
           texture.set(x, y, al_map_rgb(r, g, b));
         }
       }
-      spdlog::info("end update");
     });
 }
 

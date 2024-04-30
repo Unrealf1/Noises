@@ -1,6 +1,5 @@
 #include "noise_texture.hpp"
 
-#include <spdlog/spdlog.h>
 
 NoiseTexture::NoiseTexture(int width, int height)
   : m_draw_bitmap(width, height)
@@ -42,7 +41,6 @@ void NoiseTexture::prepare_for_draw() {
   if (m_was_modified_during_update) {
     auto override = TargetBitmapOverride(m_draw_bitmap.get_raw());
     al_draw_bitmap(m_memory_bitmap.get_raw(), 0, 0, 0);
-    spdlog::info("updating draw bitmap");
   }
 }
 
@@ -57,11 +55,14 @@ int NoiseTexture::height() {
 void NoiseTexture::draw(ALLEGRO_DISPLAY* display, const InspectionState& inspectionState) {
   auto displayBitmap = al_get_backbuffer(display);
   auto override = TargetBitmapOverride(displayBitmap);
-  //al_draw_bitmap(m_draw_bitmap.get_raw(), 0, 0, 0); // TODO: draw scaled
-  auto texWidth = al_get_bitmap_width(m_draw_bitmap.get_raw());
-  auto texHeight = al_get_bitmap_height(m_draw_bitmap.get_raw());
-  //spdlog::info("zoom is {}", inspectionState.zoom);
+
+  auto texWidth = float(al_get_bitmap_width(m_draw_bitmap.get_raw()));
+  auto texHeight = float(al_get_bitmap_height(m_draw_bitmap.get_raw()));
+
   al_draw_scaled_bitmap(m_draw_bitmap.get_raw(),
-    inspectionState.x_offset, inspectionState.y_offset, texWidth * inspectionState.zoom, texHeight * inspectionState.zoom,
-    0.0f, 0.0f, al_get_bitmap_width(displayBitmap), al_get_bitmap_height(displayBitmap), 0);
+    0.0f, 0.0f,
+    texWidth, texHeight,
+    inspectionState.x_offset, inspectionState.y_offset,
+    texWidth * inspectionState.zoom, texHeight * inspectionState.zoom, 0);
 }
+

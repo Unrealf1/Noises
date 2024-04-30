@@ -5,7 +5,7 @@
   - Other colored noises, i.e. brown
 
 * Visualization
-  * Render loop
+  + Render loop
     + init/uninit render
     + start frame / end frame
     + init/uninit window
@@ -13,9 +13,14 @@
     + Init texture
     + Draw texture
   + UI via imgui
-  - user input reaction systems
+  + user input reaction systems
   + Render grid whith colored cells
+  + Pan over grid
   * Adjustable grid size
-  - Pan over grid
+  - Proper ui
+    - Generate texture on button press
+    - Generation parameters
+    ? See statistics (what statisctics?)
   - Infinite grid
+  ? Save texture to a file
 
