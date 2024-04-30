@@ -12,13 +12,13 @@ TextureInspectionModule::TextureInspectionModule(flecs::world& ecs) {
 
   ecs.observer<InspectionState>()
     .event<EventMouseButtonDown>()
-    .iter([](flecs::iter& it, InspectionState* inspection_state) {
+    .each([](flecs::iter& it, size_t i, InspectionState& inspection_state) {
       auto& eventData = *it.event().get<EventMouseButtonDown>();
       spdlog::info("got mouse button down (pre). sz");
       for (auto _ : it) {
         if (eventData.button == 1) {
           spdlog::info("got mouse button down");
-          inspection_state->is_dragging = true;
+          inspection_state.is_dragging = true;
         }
       }
     });
@@ -39,6 +39,7 @@ TextureInspectionModule::TextureInspectionModule(flecs::world& ecs) {
     .event<EventMouseAxes>()  
     .iter([](flecs::iter& it, InspectionState* inspection_state){
       auto& eventData = *it.event().get<EventMouseAxes>();
+      spdlog::info("got mouse axis change (pre) {}", it.size());
       for (auto _ : it) {
         spdlog::info("got mouse axis change. dz is {}", eventData.dz);
         if (eventData.dz > 0) {

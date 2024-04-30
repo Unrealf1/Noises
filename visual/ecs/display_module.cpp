@@ -56,9 +56,10 @@ void SystemEvents::process(flecs::world& ecs) {
       });
 
       if (event.type == ALLEGRO_EVENT_MOUSE_AXES) {
-        spdlog::info("sending axis change. dz is {}", event.mouse.dz);
+        spdlog::info("sending axis change to <{}>. dz is {}", eventReceiver, event.mouse.dz);
         ecs.event<EventMouseAxes>()
           .ctx(EventMouseAxes{event.mouse})
+          .id<InspectionState>()
           .entity(eventReceiver)
           .emit();
       } else if (event.type == ALLEGRO_EVENT_MOUSE_BUTTON_DOWN) {
