@@ -60,6 +60,7 @@ void NoiseTexture::draw(ALLEGRO_DISPLAY* display, const InspectionState& inspect
   //al_draw_bitmap(m_draw_bitmap.get_raw(), 0, 0, 0); // TODO: draw scaled
   auto texWidth = al_get_bitmap_width(m_draw_bitmap.get_raw());
   auto texHeight = al_get_bitmap_height(m_draw_bitmap.get_raw());
+  //spdlog::info("zoom is {}", inspectionState.zoom);
   al_draw_scaled_bitmap(m_draw_bitmap.get_raw(),
     inspectionState.x_offset, inspectionState.y_offset, texWidth * inspectionState.zoom, texHeight * inspectionState.zoom,
     0.0f, 0.0f, al_get_bitmap_width(displayBitmap), al_get_bitmap_height(displayBitmap), 0);

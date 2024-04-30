@@ -14,6 +14,7 @@ flecs::query<InspectionState> s_inspection_state_query;
 
 void create_systems(flecs::world& ecs) {
   s_display_query = ecs.query<DisplayHolder>();
+  s_inspection_state_query = ecs.query<InspectionState>();
 
   // TODO: store display pointer somewhere in the NoiseTexture?
   ecs.system<NoiseTexture>("Draw noise texture")
@@ -40,7 +41,7 @@ void create_systems(flecs::world& ecs) {
 
 
   ecs.system<NoiseTexture>("Update noise texture")
-    .interval(1.0) // Run at 1Hz
+    .interval(10.0) // Run at 1Hz
     .kind(flecs::OnUpdate)
     .each([](NoiseTexture& texture){
       spdlog::info("start update");
