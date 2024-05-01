@@ -3,23 +3,12 @@
 #include <spdlog/spdlog.h>
 
 
-void GuiMenuContents::draw() { }
+void GuiMenuContents::draw(flecs::world&) { }
 
-void GuiMenu::draw() {
+void GuiMenu::draw(flecs::world& ecs) {
   if (ImGui::Begin(title.c_str())) {
-    contents->draw();
+    contents->draw(ecs);
   }
   ImGui::End();
 }
 
-constexpr int maxBufferSize = 100;
-static char buffer[maxBufferSize];
-
-void TestMenu::draw() {
-  ImGui::Text("FPS = %f", ImGui::GetIO().Framerate);
-  if (ImGui::Button("Test button")) {
-    spdlog::info("test button pressed! Now buffer is \"{}\"", std::string_view(buffer));
-  }
-
-  ImGui::InputText("test text input", buffer, maxBufferSize);
-}

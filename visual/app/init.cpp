@@ -71,8 +71,8 @@ void create_entities(flecs::world& ecs) {
   // create needed GUI
   ecs.entity()
     .set<GuiMenu>(GuiMenu{
-      .title = "Test menu",
-      .contents = std::unique_ptr<TestMenu>(new TestMenu())
+      .title = "Menu",
+      .contents = std::unique_ptr<Menu>(new Menu())
     });
 }
 

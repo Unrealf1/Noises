@@ -33,8 +33,8 @@ GuiModule::GuiModule(flecs::world& ecs) {
 
   ecs.system<GuiMenu>("draw ecs menus")
     .kind(phase::RenderGui())
-    .each([](GuiMenu& menu){
-      menu.draw();
+    .each([&ecs](GuiMenu& menu){
+      menu.draw(ecs);
     });
 
   ecs.system("finish gui frame")

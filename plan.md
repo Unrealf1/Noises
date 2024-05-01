@@ -17,8 +17,8 @@
   + Render grid whith colored cells
   + Pan over grid
   * Adjustable grid size
-  - Proper ui
-    - Generate texture on button press
+  * Proper ui
+    * Generate texture on button press
     - Generation parameters
     ? See statistics (what statisctics?)
   - Infinite grid

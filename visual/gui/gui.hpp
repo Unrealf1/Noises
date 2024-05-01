@@ -3,18 +3,21 @@
 #include <string>
 #include <memory>
 
+#include <flecs.h>
+
 
 struct GuiMenuContents {
-  virtual void draw();
+  virtual void draw(flecs::world&);
 };
 
-struct TestMenu : GuiMenuContents {
-  void draw() override;
+struct Menu : GuiMenuContents {
+  void draw(flecs::world&) override;
 };
 
 struct GuiMenu {
-  void draw();
+  void draw(flecs::world&);
 
   std::string title;
   std::unique_ptr<GuiMenuContents> contents;
 };
+
