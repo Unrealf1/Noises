@@ -74,7 +74,7 @@ TextureInspectionModule::TextureInspectionModule(flecs::world& ecs) {
 
   ecs.system<InspectionState>("pan via keyboard")
     .kind(flecs::OnUpdate)
-    .each([](InspectionState& state){
+    .each([](const flecs::iter& it, size_t, InspectionState& state){
       if (state.is_dragging) {
         return; // Mouse override keyboard panning
       }
@@ -86,7 +86,8 @@ TextureInspectionModule::TextureInspectionModule(flecs::world& ecs) {
         return;
       }
 
-      state.x_offset += dx / len * state.keyboard_pan_speed;
-      state.y_offset += dy / len * state.keyboard_pan_speed;
+      auto offsetMult = state.keyboard_pan_speed / len * it.delta_time();
+      state.x_offset += dx * offsetMult;
+      state.y_offset += dy * offsetMult;
     });
 }
