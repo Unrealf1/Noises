@@ -6,7 +6,7 @@
 void GuiMenuContents::draw(flecs::world&) { }
 
 void GuiMenu::draw(flecs::world& ecs) {
-  if (ImGui::Begin(title.c_str())) {
+  if (ImGui::Begin(title.c_str(), nullptr, flags)) {
     contents->draw(ecs);
   }
   ImGui::End();

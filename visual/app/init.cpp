@@ -1,6 +1,7 @@
 #include "init.hpp"
 
 #include <gui/gui.hpp>
+#include <imgui_inc.hpp>
 #include <render/noise_texture.hpp>
 #include <ecs/render_module.hpp>
 #include <ecs/display_module.hpp>
@@ -72,7 +73,8 @@ void create_entities(flecs::world& ecs) {
   ecs.entity()
     .set<GuiMenu>(GuiMenu{
       .title = "Menu",
-      .contents = std::unique_ptr<Menu>(new Menu())
+      .contents = std::unique_ptr<Menu>(new Menu(ecs)),
+      .flags = ImGuiWindowFlags_NoTitleBar |  ImGuiWindowFlags_NoResize |  ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize
     });
 }
 

@@ -30,6 +30,54 @@ struct SystemEvents : public EventQueue {
 
 static flecs::query<InspectionState> s_inspection_state_query;
 
+static void process_mouse_event(flecs::world& ecs, ALLEGRO_EVENT event, const flecs::entity& event_receiver) {
+  if (event.type == ALLEGRO_EVENT_MOUSE_AXES) {
+    ecs.event<EventMouseAxes>()
+      .ctx(EventMouseAxes{event.mouse})
+      .entity(event_receiver)
+      .emit();
+  } else if (event.type == ALLEGRO_EVENT_MOUSE_BUTTON_DOWN) {
+    ecs.event<EventMouseButtonDown>()
+      .ctx(EventMouseButtonDown{event.mouse})
+      .entity(event_receiver)
+      .emit();
+  } else if (event.type == ALLEGRO_EVENT_MOUSE_BUTTON_UP) {
+    ecs.event<EventMouseButtonUp>()
+      .ctx(EventMouseButtonUp{event.mouse})
+      .entity(event_receiver)
+      .emit();
+  } else if (event.type == ALLEGRO_EVENT_MOUSE_ENTER_DISPLAY) {
+    ecs.event<EventMouseEnterDisplay>()
+      .ctx(EventMouseEnterDisplay{event.mouse})
+      .entity(event_receiver)
+      .emit();
+  } else if (event.type == ALLEGRO_EVENT_MOUSE_LEAVE_DISPLAY) {
+    ecs.event<EventMouseLeaveDisplay>()
+      .ctx(EventMouseLeaveDisplay{event.mouse})
+      .entity(event_receiver)
+      .emit();
+  } else if (event.type == ALLEGRO_EVENT_MOUSE_WARPED) {
+    ecs.event<EventMouseWarped>()
+      .ctx(EventMouseWarped{event.mouse})
+      .entity(event_receiver)
+      .emit();
+  }
+}
+
+static void process_keyboard_event(flecs::world& ecs, ALLEGRO_EVENT event, const flecs::entity& event_receiver) {
+  if (event.type == ALLEGRO_EVENT_KEY_DOWN) {
+    ecs.event<EventKeyDown>()
+      .ctx(EventKeyDown{event.keyboard})
+      .entity(event_receiver)
+      .emit();
+  } else if (event.type == ALLEGRO_EVENT_KEY_UP) {
+    ecs.event<EventKeyUp>()
+      .ctx(EventKeyUp{event.keyboard})
+      .entity(event_receiver)
+      .emit();
+  }
+}
+
 void SystemEvents::process(flecs::world& ecs) {
   while (!empty()) {
     ALLEGRO_EVENT event;
@@ -45,50 +93,18 @@ void SystemEvents::process(flecs::world& ecs) {
     }
 
     ImGui_ImplAllegro5_ProcessEvent(&event);
+
+    flecs::entity eventReceiver = get_input_event_receiver();
     if (event.any.source == al_get_mouse_event_source()) {
       if (ImGui::GetIO().WantCaptureMouse) {
         continue;
       }
-      
-      flecs::entity eventReceiver = get_input_event_receiver();
-
-      if (event.type == ALLEGRO_EVENT_MOUSE_AXES) {
-        ecs.event<EventMouseAxes>()
-          .ctx(EventMouseAxes{event.mouse})
-          .entity(eventReceiver)
-          .emit();
-      } else if (event.type == ALLEGRO_EVENT_MOUSE_BUTTON_DOWN) {
-        ecs.event<EventMouseButtonDown>()
-          .ctx(EventMouseButtonDown{event.mouse})
-          .entity(eventReceiver)
-          .emit();
-      } else if (event.type == ALLEGRO_EVENT_MOUSE_BUTTON_UP) {
-        ecs.event<EventMouseButtonUp>()
-          .ctx(EventMouseButtonUp{event.mouse})
-          .entity(eventReceiver)
-          .emit();
-      } else if (event.type == ALLEGRO_EVENT_MOUSE_ENTER_DISPLAY) {
-        ecs.event<EventMouseEnterDisplay>()
-          .ctx(EventMouseEnterDisplay{event.mouse})
-          .entity(eventReceiver)
-          .emit();
-      } else if (event.type == ALLEGRO_EVENT_MOUSE_LEAVE_DISPLAY) {
-        ecs.event<EventMouseLeaveDisplay>()
-          .ctx(EventMouseLeaveDisplay{event.mouse})
-          .entity(eventReceiver)
-          .emit();
-      } else if (event.type == ALLEGRO_EVENT_MOUSE_WARPED) {
-        ecs.event<EventMouseWarped>()
-          .ctx(EventMouseWarped{event.mouse})
-          .entity(eventReceiver)
-          .emit();
-      }
-    }
-
-    if (event.any.source == al_get_keyboard_event_source()) {
+      process_mouse_event(ecs, event, eventReceiver);
+    } else if (event.any.source == al_get_keyboard_event_source()) {
       if (ImGui::GetIO().WantCaptureKeyboard) {
         continue;
       }
+      process_keyboard_event(ecs, event, eventReceiver);
     }
   }
 }
@@ -103,7 +119,8 @@ DisplayModule::DisplayModule(flecs::world& ecs) {
   ImGui_ImplAllegro5_Init(display);
 
   s_inspection_state_query = ecs.query<InspectionState>();
-  s_InputEventReceiver = ecs.entity();
+  s_InputEventReceiver = ecs.entity()
+    .add<ALLEGRO_KEYBOARD_STATE>();
 
   ecs.module<DisplayModule>();   
 
@@ -121,6 +138,12 @@ DisplayModule::DisplayModule(flecs::world& ecs) {
     .kind(phase::SystemEvents())
     .each([&ecs](SystemEvents& events) {
        events.process(ecs);
+    });
+
+  ecs.system<ALLEGRO_KEYBOARD_STATE>("update keyboard state")
+    .kind(phase::SystemEvents())
+    .each([](ALLEGRO_KEYBOARD_STATE& state){
+      al_get_keyboard_state(&state);
     });
 
   ecs.observer<DisplayHolder>()

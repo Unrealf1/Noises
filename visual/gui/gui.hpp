@@ -11,6 +11,7 @@ struct GuiMenuContents {
 };
 
 struct Menu : GuiMenuContents {
+  Menu(flecs::world&);
   void draw(flecs::world&) override;
 };
 
@@ -19,5 +20,6 @@ struct GuiMenu {
 
   std::string title;
   std::unique_ptr<GuiMenuContents> contents;
+  int flags = 0;
 };
 

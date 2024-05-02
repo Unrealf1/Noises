@@ -52,4 +52,41 @@ TextureInspectionModule::TextureInspectionModule(flecs::world& ecs) {
         }
       });
     });
+
+  ecs.system<ALLEGRO_KEYBOARD_STATE>("update keyboard panning state")
+    .kind(phase::SystemEvents())
+    .each([](const ALLEGRO_KEYBOARD_STATE& state){
+      s_inspection_state_query.each([&state](InspectionState& inspection_state){
+        bool left = al_key_down(&state, ALLEGRO_KEY_LEFT);
+        bool right = al_key_down(&state, ALLEGRO_KEY_RIGHT);
+        bool up = al_key_down(&state, ALLEGRO_KEY_UP);
+        bool down = al_key_down(&state, ALLEGRO_KEY_DOWN);
+        bool speedup = al_key_down(&state, ALLEGRO_KEY_LSHIFT) || al_key_down(&state, ALLEGRO_KEY_RSHIFT);
+
+        inspection_state.keyboard_pan_speed = speedup
+          ? inspection_state.keyboard_pan_speed_fast
+          : inspection_state.keyboard_pan_speed_normal;
+
+        inspection_state.keyboard_pan_dx = (left ? -1.0f : 0.0f) + (right ? 1.0f : 0.0f);
+        inspection_state.keyboard_pan_dy = (up ? -1.0f : 0.0f) + (down ? 1.0f : 0.0f);
+      });
+    });
+
+  ecs.system<InspectionState>("pan via keyboard")
+    .kind(flecs::OnUpdate)
+    .each([](InspectionState& state){
+      if (state.is_dragging) {
+        return; // Mouse override keyboard panning
+      }
+
+      float dx = state.keyboard_pan_dx;
+      float dy = state.keyboard_pan_dy;
+      float len = std::sqrt(dx * dx + dy * dy);
+      if (len < 1e-6f) {
+        return;
+      }
+
+      state.x_offset += dx / len * state.keyboard_pan_speed;
+      state.y_offset += dy / len * state.keyboard_pan_speed;
+    });
 }
