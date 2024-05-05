@@ -10,11 +10,6 @@ struct GuiMenuContents {
   virtual void draw(flecs::world&);
 };
 
-struct Menu : GuiMenuContents {
-  Menu(flecs::world&);
-  void draw(flecs::world&) override;
-};
-
 struct GuiMenu {
   void draw(flecs::world&);
 

@@ -1,27 +1,18 @@
-#include "gui.hpp"
+#include "menu.hpp"
 
 #include <imgui_inc.hpp>
-#include <ecs/texture_inspection_module.hpp>
-#include <array>
 #include <render/noise_texture.hpp>
 
 
-int new_texture_size[2];
-std::array noises {"white", "perlin"};
-int noise_idx = 0;
+Menu::Menu(flecs::world& ecs, flecs::entity menu_eid) {
+  m_event_receiver = menu_eid;
+  m_inspection_state_query = ecs.query<InspectionState>();
+  ecs.each([this](NoiseTexture& texture){
+    m_current_texture_size[0] = texture.width();
+    m_current_texture_size[1] = texture.height();
 
-int current_texture_size[2];
-
-static flecs::query<InspectionState> s_inspection_state_query2;
-
-Menu::Menu(flecs::world& ecs) {
-  s_inspection_state_query2 = ecs.query<InspectionState>();
-  ecs.each([](NoiseTexture& texture){
-    current_texture_size[0] = texture.width();
-    current_texture_size[1] = texture.height();
-
-    new_texture_size[0] = current_texture_size[0];
-    new_texture_size[1] = current_texture_size[1];
+    m_new_texture_size[0] = m_current_texture_size[0];
+    m_new_texture_size[1] = m_current_texture_size[1];
   });
 }
 
@@ -29,7 +20,7 @@ void Menu::draw(flecs::world& ecs) {
   // General info
   ImGui::Text("FPS = %f", ImGui::GetIO().Framerate);
 
-  s_inspection_state_query2.each([](InspectionState& state) {
+  m_inspection_state_query.each([this](InspectionState& state) {
     ImGui::Text("Offset: %.1f, %.1f", state.x_offset, state.y_offset);
     ImGui::SameLine(0.0f, 10.0f);
     if (ImGui::Button("Reset##Offset")) {
@@ -43,19 +34,25 @@ void Menu::draw(flecs::world& ecs) {
       state.zoom = 1.0f;
     }
 
-    ImGui::Text("Size: %d, %d", current_texture_size[0], current_texture_size[1]);
+    ImGui::Text("Size: %d, %d", m_current_texture_size[0], m_current_texture_size[1]);
   });
   
   ImGui::Separator();
   ImGui::Separator();
 
   // Generate new texture
-  ImGui::ListBox("Noise type", &noise_idx, noises.data(), int(noises.size()), 3);
+  ImGui::ListBox("Noise type", &(m_noise_idx), s_noises.data(), int(s_noises.size()), 3);
   // TODO: set noise type parameters
 
-  ImGui::SliderInt2("Texture size", new_texture_size, 1, 10000, "%d", ImGuiSliderFlags_AlwaysClamp);
+  ImGui::SliderInt2("Texture size", m_new_texture_size, 1, 10000, "%d", ImGuiSliderFlags_AlwaysClamp);
   if (ImGui::Button("Generate")) {
-    // TODO: send event to generate new texture
+    ecs.event<Menu::EventGenerateWhiteNoiseTexture>()
+      .ctx(Menu::EventGenerateWhiteNoiseTexture{
+        .size = {m_new_texture_size[0], m_new_texture_size[1]},
+        .black_prob = 0.5f
+      })
+      .entity(m_event_receiver)
+      .emit();
   }
 
   // TODO: show statistics? Like distribution of colors?

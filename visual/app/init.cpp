@@ -1,22 +1,37 @@
 #include "init.hpp"
 
-#include <gui/gui.hpp>
+#include <gui/menu.hpp>
 #include <imgui_inc.hpp>
 #include <render/noise_texture.hpp>
+#include <random>
 #include <ecs/render_module.hpp>
 #include <ecs/display_module.hpp>
+#include <ecs/gui_module.hpp>
 #include <ecs/texture_inspection_module.hpp>
-#include <random>
-#include <spdlog/spdlog.h>
 
 
 static flecs::query<DisplayHolder> s_display_query;
 static flecs::query<InspectionState> s_inspection_state_query;
+static flecs::query<Menu> s_menu_query;
+static flecs::query<NoiseTexture> s_noise_texture_query;
 
-void create_systems(flecs::world& ecs) {
+static flecs::entity s_menu_event_receiver;
+
+void init_queries(flecs::world& ecs) {
   s_display_query = ecs.query<DisplayHolder>();
   s_inspection_state_query = ecs.query<InspectionState>();
+  s_menu_query = ecs.query<Menu>();
+  s_noise_texture_query = ecs.query<NoiseTexture>();
+}
 
+void import_modules(flecs::world& ecs) {
+  ecs.import<RenderModule>();
+  ecs.import<DisplayModule>();
+  ecs.import<GuiModule>();
+  ecs.import<TextureInspectionModule>();
+}
+
+void create_systems(flecs::world& ecs) {
   // TODO: store display pointer somewhere in the NoiseTexture?
   ecs.system<NoiseTexture>("Draw noise texture")
     .kind(phase::Render())
@@ -39,15 +54,31 @@ void create_systems(flecs::world& ecs) {
     .each([](NoiseTexture& texture) {
       texture.prepare_for_update();
     });
+}
 
+void create_entities(flecs::world& ecs) {
+  ecs.entity()
+    .emplace<NoiseTexture>(500, 500);
 
-  ecs.system<NoiseTexture>("Update noise texture")
-    .interval(3.0) // Run at 1Hz
-    .kind(flecs::OnUpdate)
-    .each([](NoiseTexture& texture){
+  s_menu_event_receiver = ecs.entity();
+  s_menu_event_receiver.set<GuiMenu>(GuiMenu{
+    .title = "Menu",
+    .contents = std::unique_ptr<Menu>(new Menu(ecs, s_menu_event_receiver)),
+    .flags = ImGuiWindowFlags_NoTitleBar |  ImGuiWindowFlags_NoResize |  ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize
+  });
+}
+
+void create_observers(flecs::world& ecs) {
+  s_menu_event_receiver
+    .observe([&ecs](const Menu::EventGenerateWhiteNoiseTexture& event){
+      s_noise_texture_query.each([](flecs::entity entity, const NoiseTexture&){
+        entity.destruct();
+      });
+      NoiseTexture texture(event.size[0], event.size[1]);
+
       std::random_device dev{};
       std::default_random_engine eng(dev());
-      std::bernoulli_distribution distr(0.5);
+      std::bernoulli_distribution distr(event.black_prob);
 
       auto white = al_map_rgb(255, 255, 255);
       auto black = al_map_rgb(0, 0, 0);
@@ -61,25 +92,16 @@ void create_systems(flecs::world& ecs) {
           texture.set(x, y, al_map_rgb(r, g, b));
         }
       }
+      ecs.entity().emplace<NoiseTexture>(std::move(texture));
     });
 }
-
-void create_entities(flecs::world& ecs) {
-  // create noise texture
-  ecs.entity()
-    .emplace<NoiseTexture>(500, 500);
-
-  // create needed GUI
-  ecs.entity()
-    .set<GuiMenu>(GuiMenu{
-      .title = "Menu",
-      .contents = std::unique_ptr<Menu>(new Menu(ecs)),
-      .flags = ImGuiWindowFlags_NoTitleBar |  ImGuiWindowFlags_NoResize |  ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize
-    });
-}
-
 
 void app::init(flecs::world& ecs) {
+  init_queries(ecs);
+  import_modules(ecs);
+  // TODO: move all systems & observers inside modules?
   create_systems(ecs);
   create_entities(ecs);
+  create_observers(ecs);
 }
+

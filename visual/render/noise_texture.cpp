@@ -33,7 +33,6 @@ ALLEGRO_COLOR NoiseTexture::get(int x, int y) {
 
 void NoiseTexture::prepare_for_update() {
   m_locked_memory_bitmap = al_lock_bitmap(m_memory_bitmap.get_raw(), ALLEGRO_PIXEL_FORMAT_ANY, ALLEGRO_LOCK_READWRITE);
-  m_was_modified_during_update = false;
 }
 
 void NoiseTexture::prepare_for_draw() {
@@ -41,6 +40,7 @@ void NoiseTexture::prepare_for_draw() {
   if (m_was_modified_during_update) {
     auto override = TargetBitmapOverride(m_draw_bitmap.get_raw());
     al_draw_bitmap(m_memory_bitmap.get_raw(), 0, 0, 0);
+    m_was_modified_during_update = false;
   }
 }
 

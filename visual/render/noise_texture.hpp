@@ -22,5 +22,5 @@ struct NoiseTexture {
   Bitmap m_memory_bitmap;
 
   ALLEGRO_LOCKED_REGION* m_locked_memory_bitmap;
-  bool m_was_modified_during_update = false;
+  bool m_was_modified_during_update = true; // to update gpu state on creation
 };
