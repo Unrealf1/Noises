@@ -53,6 +53,8 @@ void Menu::draw(flecs::world& ecs) {
       })
       .entity(m_event_receiver)
       .emit();
+    m_current_texture_size[0] = m_new_texture_size[0];
+    m_current_texture_size[1] = m_new_texture_size[1];
   }
 
   // TODO: show statistics? Like distribution of colors?
