@@ -59,10 +59,20 @@ void NoiseTexture::draw(ALLEGRO_DISPLAY* display, const InspectionState& inspect
   auto texWidth = float(al_get_bitmap_width(m_draw_bitmap.get_raw()));
   auto texHeight = float(al_get_bitmap_height(m_draw_bitmap.get_raw()));
 
+  auto zoomTexWidth = texWidth * inspectionState.zoom;
+  auto zoomTexHeight = texHeight * inspectionState.zoom;
+
+  // no zoomed center - zoomed center
+  auto zoomToCenterCompensationX = (texWidth - zoomTexWidth) / 2.0f;
+  auto zoomToCenterCompensationY = (texHeight - zoomTexHeight) / 2.0f;
+
+  auto zoomOffsetX = inspectionState.x_offset + zoomToCenterCompensationX;
+  auto zoomOffsetY = inspectionState.y_offset + zoomToCenterCompensationY;
+
   al_draw_scaled_bitmap(m_draw_bitmap.get_raw(),
     0.0f, 0.0f,
     texWidth, texHeight,
-    inspectionState.x_offset, inspectionState.y_offset,
-    texWidth * inspectionState.zoom, texHeight * inspectionState.zoom, 0);
+    zoomOffsetX, zoomOffsetY,
+    zoomTexWidth, zoomTexHeight, 0);
 }
 

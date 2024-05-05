@@ -17,7 +17,7 @@
   + Render grid whith colored cells
   + Pan & zoom over grid
   + Keyboard control to pan & zoom
-  - Zoom to mouse / center
+  + Zoom to mouse / center
   + Adjustable grid size
   * Proper ui
     + display basic information abour current texture and inspector state
