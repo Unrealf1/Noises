@@ -18,10 +18,10 @@
   + Pan & zoom over grid
   + Keyboard control to pan & zoom
   - Zoom to mouse / center
-  * Adjustable grid size
+  + Adjustable grid size
   * Proper ui
     + display basic information abour current texture and inspector state
-    * Generate texture on button press
+    + Generate texture on button press
     - Generation parameters
     ? See statistics (what statisctics?)
   - Infinite grid
