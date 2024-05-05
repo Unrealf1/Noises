@@ -57,9 +57,6 @@ void create_systems(flecs::world& ecs) {
 }
 
 void create_entities(flecs::world& ecs) {
-  ecs.entity()
-    .emplace<NoiseTexture>(500, 500);
-
   s_menu_event_receiver = ecs.entity();
   s_menu_event_receiver.set<GuiMenu>(GuiMenu{
     .title = "Menu",
