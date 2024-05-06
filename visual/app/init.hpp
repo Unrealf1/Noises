@@ -1,6 +1,6 @@
 #pragma once
 
-#include <flecs.h>
+#include <flecs_incl.hpp>
 
 namespace app {
   void init(flecs::world&);

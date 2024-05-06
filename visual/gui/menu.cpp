@@ -18,17 +18,17 @@ Menu::Menu(flecs::world& ecs, flecs::entity menu_eid) {
 
 void Menu::draw(flecs::world& ecs) {
   // General info
-  ImGui::Text("FPS = %f", ImGui::GetIO().Framerate);
+  ImGui::Text("FPS = %f", double(ImGui::GetIO().Framerate));
 
   m_inspection_state_query.each([this](InspectionState& state) {
-    ImGui::Text("Offset: %.1f, %.1f", state.x_offset, state.y_offset);
+    ImGui::Text("Offset: %.1f, %.1f", double(state.x_offset), double(state.y_offset));
     ImGui::SameLine(0.0f, 10.0f);
     if (ImGui::Button("Reset##Offset")) {
       state.x_offset = 0.0f;
       state.y_offset = 0.0f;
     }
 
-    ImGui::Text("Zoom: %.1f%%", state.zoom * 100.0f);
+    ImGui::Text("Zoom: %.1f%%", double(state.zoom * 100.0f));
     ImGui::SameLine(0.0f, 10.0f);
     if (ImGui::Button("Reset##Zoom")) {
       state.zoom = 1.0f;

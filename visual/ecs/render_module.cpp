@@ -42,13 +42,13 @@ RenderModule::RenderModule(flecs::world& ecs) {
   // 2. create systems for frame start and end
   ecs.system("start_render")
     .kind(phase::BeforeRender())
-    .iter([](flecs::iter& it) {
+    .iter([](flecs::iter&) {
       render::start_frame();
     });
 
   ecs.system("finish_render")
     .kind(phase::AfterRender())
-    .iter([](flecs::iter& it) {
+    .iter([](flecs::iter&) {
       render::finish_frame();
     });
 }

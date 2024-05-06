@@ -3,11 +3,12 @@
 #include <string>
 #include <memory>
 
-#include <flecs.h>
+#include <flecs_incl.hpp>
 
 
 struct GuiMenuContents {
   virtual void draw(flecs::world&);
+  virtual ~GuiMenuContents() {}
 };
 
 struct GuiMenu {

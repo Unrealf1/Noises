@@ -1,4 +1,4 @@
-#include <flecs.h>
+#include <flecs_incl.hpp>
 
 namespace phase {
   flecs::entity BeforeRender();

@@ -1,6 +1,6 @@
 #include <app/stop.hpp>
 #include <app/init.hpp>
-#include <flecs.h>
+#include <flecs_incl.hpp>
 
 
 int main() {

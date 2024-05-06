@@ -37,7 +37,6 @@ TextureInspectionModule::TextureInspectionModule(flecs::world& ecs) {
   get_input_event_receiver()
     .observe([](EventMouseAxes event){
       s_inspection_state_query.each([&event](InspectionState& inspection_state){
-        auto oldZoom = inspection_state.zoom;
         if (event.dz > 0) {
           inspection_state.zoom *= inspection_state.zoom_step;
           inspection_state.zoom = std::clamp(inspection_state.zoom, inspection_state.min_zoom, inspection_state.max_zoom);
@@ -47,8 +46,8 @@ TextureInspectionModule::TextureInspectionModule(flecs::world& ecs) {
         }
 
         if (inspection_state.is_dragging) {
-          inspection_state.x_offset += event.dx;
-          inspection_state.y_offset += event.dy;
+          inspection_state.x_offset += float(event.dx);
+          inspection_state.y_offset += float(event.dy);
         }
       });
     });

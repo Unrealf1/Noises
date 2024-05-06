@@ -77,15 +77,13 @@ void create_observers(flecs::world& ecs) {
       std::default_random_engine eng(dev());
       std::bernoulli_distribution distr(event.black_prob);
 
-      auto white = al_map_rgb(255, 255, 255);
-      auto black = al_map_rgb(0, 0, 0);
       auto width = texture.width();
       auto height = texture.height();
       for (int x = 0; x < width; ++x) {
         for (int y = 0; y < height; ++y) {
-          auto r = distr(eng) ? 255 : 0;
-          auto g = distr(eng) ? 255 : 0;
-          auto b = distr(eng) ? 255 : 0;
+          uint8_t r = distr(eng) ? 0 : 255;
+          uint8_t g = distr(eng) ? 0 : 255;
+          uint8_t b = distr(eng) ? 0 : 255;
           texture.set(x, y, al_map_rgb(r, g, b));
         }
       }

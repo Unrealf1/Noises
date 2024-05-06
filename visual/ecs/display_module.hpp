@@ -1,6 +1,6 @@
 #pragma once
 
-#include <flecs.h>
+#include <flecs_incl.hpp>
 #include <allegro5/allegro5.h>
 
 
