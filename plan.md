@@ -1,6 +1,6 @@
 * Algorithms
   - White noise
-  - Perlin noise
+  * Perlin noise
   - Simplex noise
   - Other colored noises, i.e. brown
 
@@ -22,8 +22,11 @@
   * Proper ui
     + display basic information abour current texture and inspector state
     + Generate texture on button press
-    - Generation parameters
+    + Generation parameters
     ? See statistics (what statisctics?)
+  - Custom additional visualization per algorithm
+    -   Grid vectors for perlin
+  - Rework Pan with 2d camera in mind
   - Infinite grid
   ? Save texture to a file
 
