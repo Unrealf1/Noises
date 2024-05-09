@@ -3,6 +3,7 @@
 #include <allegro_util.hpp>
 #include <ecs/render_module.hpp>
 #include <gui/gui.hpp>
+#include <gui/menu.hpp>
 #include <imgui_inc.hpp>
 
 
@@ -43,4 +44,11 @@ GuiModule::GuiModule(flecs::world& ecs) {
       ImGui::Render();
       ImGui_ImplAllegro5_RenderDrawData(ImGui::GetDrawData());
     });
+
+  auto menu = ecs.entity();
+  menu.set<GuiMenu>(GuiMenu{
+    .title = "Menu",
+    .contents = std::unique_ptr<Menu>(new Menu(ecs, menu)),
+    .flags = ImGuiWindowFlags_NoTitleBar |  ImGuiWindowFlags_NoResize |  ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize
+  });
 }

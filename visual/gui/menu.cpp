@@ -6,13 +6,11 @@
 
 Menu::Menu(flecs::world& ecs, flecs::entity menu_eid) {
   m_event_receiver = menu_eid;
+  m_event_receiver.add<Menu::EventReceiver>();
   m_inspection_state_query = ecs.query<InspectionState>();
   ecs.each([this](NoiseTexture& texture){
     m_current_texture_size[0] = texture.width();
     m_current_texture_size[1] = texture.height();
-
-    m_new_texture_size[0] = m_current_texture_size[0];
-    m_new_texture_size[1] = m_current_texture_size[1];
   });
 }
 
@@ -42,19 +40,32 @@ void Menu::draw(flecs::world& ecs) {
 
   // Generate new texture
   ImGui::ListBox("Noise type", &(m_noise_idx), s_noises.data(), int(s_noises.size()), 3);
-  // TODO: set noise type parameters
+  if (m_noise_idx == int(MenuNoisesIndices::white)) {
+    ImGui::SliderInt2("Texture size", m_white_noise_params.size, 1, 10000, "%d", ImGuiSliderFlags_AlwaysClamp);
+    ImGui::SliderFloat("Black probability", &m_white_noise_params.black_prob, 0.0f, 1.0f);
+  } else if (m_noise_idx == int(MenuNoisesIndices::perlin)) {
+    ImGui::SliderInt2("Texture size", m_perlin_noise_params.size, 1, 10000, "%d", ImGuiSliderFlags_AlwaysClamp);
+    ImGui::SliderInt2("Vector grid size", m_perlin_noise_params.grid_size, 1, 10000);
+    ImGui::SliderFloat2("Grid step", m_perlin_noise_params.grid_step, 0.1f, 10000.0f);
+    ImGui::Checkbox("Normalize offset vectors", &m_perlin_noise_params.normalize_offsets);
+  }
 
-  ImGui::SliderInt2("Texture size", m_new_texture_size, 1, 10000, "%d", ImGuiSliderFlags_AlwaysClamp);
   if (ImGui::Button("Generate")) {
-    ecs.event<Menu::EventGenerateWhiteNoiseTexture>()
-      .ctx(Menu::EventGenerateWhiteNoiseTexture{
-        .size = {m_new_texture_size[0], m_new_texture_size[1]},
-        .black_prob = 0.5f
-      })
-      .entity(m_event_receiver)
-      .emit();
-    m_current_texture_size[0] = m_new_texture_size[0];
-    m_current_texture_size[1] = m_new_texture_size[1];
+    if (m_noise_idx == int(MenuNoisesIndices::white)) {
+      ecs.event<Menu::EventGenerateWhiteNoiseTexture>()
+        .ctx(m_white_noise_params)
+        .entity(m_event_receiver)
+        .emit();
+      m_current_texture_size[0] = m_white_noise_params.size[0];
+      m_current_texture_size[1] = m_white_noise_params.size[1];
+    } else if (m_noise_idx == int(MenuNoisesIndices::perlin)) {
+      ecs.event<Menu::EventGeneratePerlinNoiseTexture>()
+        .ctx(m_perlin_noise_params)
+        .entity(m_event_receiver)
+        .emit();
+      m_current_texture_size[0] = m_perlin_noise_params.size[0];
+      m_current_texture_size[1] = m_perlin_noise_params.size[1];
+    }
   }
 
   // TODO: show statistics? Like distribution of colors?
