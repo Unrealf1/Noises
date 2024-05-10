@@ -16,6 +16,9 @@ struct PerlinNoiseParameters {
   float offset_y = 0.0f;
 
   bool normalize_offsets = false;
+  enum class InterpolationAlgorithm {
+    bilinear, bicubic, nearest_neighboor
+  } interpolation_algorithm = InterpolationAlgorithm::bilinear;
 };
 
 class PerlinNoise {

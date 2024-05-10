@@ -18,6 +18,11 @@ namespace phase {
 GuiModule::GuiModule(flecs::world& ecs) {
   ecs.module<GuiModule>();
 
+  auto& io = ImGui::GetIO();
+  io.IniFilename = nullptr;
+  io.LogFilename = nullptr;
+
+
   s_RenderGui = ecs.entity()
     .add(flecs::Phase)
     .depends_on(phase::Render());
@@ -49,6 +54,6 @@ GuiModule::GuiModule(flecs::world& ecs) {
   menu.set<GuiMenu>(GuiMenu{
     .title = "Menu",
     .contents = std::unique_ptr<Menu>(new Menu(ecs, menu)),
-    .flags = ImGuiWindowFlags_NoTitleBar |  ImGuiWindowFlags_NoResize |  ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize
+    .flags = ImGuiWindowFlags_NoResize |  ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize
   });
 }
