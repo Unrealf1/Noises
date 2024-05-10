@@ -15,11 +15,11 @@ float PerlinNoise::operator()(float x, float y) {
   int right = left + 1;
   int bot = top + 1;
 
-  if (left < 0 || left >= m_parameters.grid_size_x) {
+  if (left < 0 || right >= m_parameters.grid_size_x) {
     return 0.0f;
   }
 
-  if (top < 0 || top >= m_parameters.grid_size_y) {
+  if (top < 0 || bot >= m_parameters.grid_size_y) {
     return 0.0f;
   }
 
@@ -51,14 +51,14 @@ float PerlinNoise::operator()(float x, float y) {
     botLeftOffset[1] /= botLeftOffsetLen;
   }
 
-  float* topLeftValue = &m_grid_data[left + top * m_parameters.grid_size_x];
-  float* topRightValue = &m_grid_data[right + top * m_parameters.grid_size_x];
-  float* botRightValue = &m_grid_data[right + bot * m_parameters.grid_size_x];
-  float* botLeftValue = &m_grid_data[left + bot * m_parameters.grid_size_x];
+  float* topLeftValue = &m_grid_data[(left + top * m_parameters.grid_size_x) * 2];
+  float* topRightValue = &m_grid_data[(right + top * m_parameters.grid_size_x) * 2];
+  float* botRightValue = &m_grid_data[(right + bot * m_parameters.grid_size_x) * 2];
+  float* botLeftValue = &m_grid_data[(left + bot * m_parameters.grid_size_x) * 2];
 
   float topLeftDot = topLeftOffset[0] * topLeftValue[0] + topLeftOffset[1] * topLeftValue[1];
-  float topRightDot = topLeftOffset[0] * topRightValue[0] + topLeftOffset[1] * topRightValue[1];
-  float botRightDot = botLeftOffset[0] * botRightValue[0] + botLeftOffset[1] * botRightValue[1];
+  float topRightDot = topRightOffset[0] * topRightValue[0] + topRightOffset[1] * topRightValue[1];
+  float botRightDot = botRightOffset[0] * botRightValue[0] + botRightOffset[1] * botRightValue[1];
   float botLeftDot = botLeftOffset[0] * botLeftValue[0] + botLeftOffset[1] * botLeftValue[1];
 
   // interpolate between this values
@@ -67,6 +67,10 @@ float PerlinNoise::operator()(float x, float y) {
 
   auto topInterp = std::lerp(topLeftDot, topRightDot, horInterpK);
   auto botInterp = std::lerp(botLeftDot, botRightDot, horInterpK);
-  return std::lerp(topInterp, botInterp, vertInterpK);
+  auto result = std::lerp(topInterp, botInterp, vertInterpK);
+
+  float cellDiagonal = std::sqrt(m_parameters.grid_step_x * m_parameters.grid_step_x + m_parameters.grid_step_y * m_parameters.grid_step_y);
+  float normalizedResult = result / cellDiagonal;
+  return (1.0f + normalizedResult) / 2.0f;
 }
 
