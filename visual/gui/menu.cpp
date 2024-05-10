@@ -2,6 +2,7 @@
 
 #include <imgui_inc.hpp>
 #include <render/noise_texture.hpp>
+#include <format>
 
 #include <spdlog/spdlog.h>
 
@@ -70,17 +71,37 @@ void Menu::draw(flecs::world& ecs) {
     m_perlin_noise_params.interpolation_algorithm = PerlinNoiseParameters::InterpolationAlgorithm(algo);
 
   } else if (m_noise_idx == int(MenuNoisesIndices::interpolation)) {
-    ImGui::SliderInt2("Texture size", m_perlin_noise_params.size, 1, 10000, "%d", ImGuiSliderFlags_AlwaysClamp);
+    ImGui::SliderInt2("Texture size", m_interpolated_texture_params.size, 1, 10000, "%d", ImGuiSliderFlags_AlwaysClamp);
+    static const char* labels[16] = {
+      "ColorPicker1",
+      "ColorPicker2",
+      "ColorPicker3",
+      "ColorPicker4",
+      "ColorPicker5",
+      "ColorPicker6",
+      "ColorPicker7",
+      "ColorPicker8",
+      "ColorPicker9",
+      "ColorPicker10",
+      "ColorPicker11",
+      "ColorPicker12",
+      "ColorPicker13",
+      "ColorPicker14",
+      "ColorPicker15",
+      "ColorPicker16"
+    };
     for (int row = 0; row <= 3; ++row) {
       for (int column = 0; column <= 3; ++column) {
-        spdlog::info("{} , {}", row, column);
-        ImGui::ColorEdit3("", &m_interpolated_texture_params.colors[(row * 4 + column) * 3]);
+        int index = (row * 4 + column) * 3;
+        /*char labelBuffer[10];
+        std::format_to(labelBuffer, "Color{}\0", row * 4 + column);*/
+        ImGui::ColorEdit3(labels[index / 3], &m_interpolated_texture_params.colors[index], ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoLabel);
         if (column != 3) {
           ImGui::SameLine();
         }
       }
     }
-    const char* algorithms[] = {"bilinear", "nearest neighboor"};
+    const char* algorithms[] = {"bilinear", "bicubic", "nearest neighboor"};
     int algo = int(m_interpolated_texture_params.algorithm);
     ImGui::ListBox("Algorithm", &algo, algorithms, sizeof(algorithms) / sizeof(const char*), 3);
     m_interpolated_texture_params.algorithm = Menu::EventGenerateInterpolatedTexture::Algorithm(algo);

@@ -46,7 +46,7 @@ public:
       1, 1, 0
     };
     enum class Algorithm {
-      bilinear, nearest_neighboor
+      bilinear, bicubic, nearest_neighboor
     } algorithm = Algorithm::nearest_neighboor;
   };
 

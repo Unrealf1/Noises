@@ -1,6 +1,7 @@
 * Algorithms
   - White noise
   * Perlin noise
+      * bicubic interpolation
   - Simplex noise
   - Other colored noises, i.e. brown
 
@@ -30,6 +31,12 @@
   - Infinite grid
   ? Save texture to a file
 
+  - Refactor generation interaction with ui
+    -   Ui should update its values of cur tex size from on appear event, not set this by hand
+    -   Sending generation time by event might be excessive (might be useful for multithread though)
+    -   Delete old texture on appearence of a new one?
+  - Create texture with multiple threads
+  - Look into using plain array instead of memory allegro texture
   - Rework input
     Display has system events as child/sends events to the display entity
     Events are sent to the exact display

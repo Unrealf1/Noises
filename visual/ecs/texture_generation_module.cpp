@@ -89,21 +89,48 @@ static void generate_white_noise_texture(flecs::world& ecs, const Menu::EventGen
 }
 
 static ALLEGRO_COLOR bilinear_interpolation(int x, int y, int width, int height, const Menu::EventGenerateInterpolatedTexture& event) {
-  return al_map_rgb(0, 0, 0);
-  /*
-  float kx = float(x) / float(width);
-  float ky = float(y) / float(height);
+  auto sectorWidth = width / 3;
+  auto sectorHeight = height / 3;
+
+  auto sectorLeftColumn = x / sectorWidth;
+  auto sectorLeft = sectorLeftColumn * sectorWidth;
+  auto dx = x - sectorLeft;
+
+  auto sectorTopRow = y / sectorHeight;
+  auto sectorTop = sectorTopRow * sectorHeight;
+  auto dy = y - sectorTop;
+ 
+  float kx = float(dx) / float(sectorWidth);
+  float ky = float(dy) / float(sectorHeight);
+
+  int left = sectorLeftColumn;
+  int right = sectorLeftColumn + 1;
+  int top = sectorTopRow;
+  int bot = sectorTopRow + 1;
+  if (left < 0 || right >= 4 || top < 0 || bot >= 4) {
+    return al_map_rgb(255, 255, 255);
+  }
+
+  auto index = [](int x, int y) {
+    return (x + y * 4) * 3;
+  };
+
+  int topLeft = index(left, top);
+  int topRight = index(right, top);
+
+  int botLeft = index(left, bot);
+  int botRight = index(right, bot);
 
   float topInterp[3] = {
-    std::lerp(event.topLeft[0], event.topRight[0], kx),
-    std::lerp(event.topLeft[1], event.topRight[1], kx),
-    std::lerp(event.topLeft[2], event.topRight[2], kx)
+    std::lerp(event.colors[topLeft], event.colors[topRight], kx),
+    std::lerp(event.colors[topLeft + 1], event.colors[topRight + 1], kx),
+    std::lerp(event.colors[topLeft + 2], event.colors[topRight + 2], kx),
   };
-    
+
   float botInterp[3] = {
-    std::lerp(event.botLeft[0], event.botRight[0], kx),
-    std::lerp(event.botLeft[1], event.botRight[1], kx),
-    std::lerp(event.botLeft[2], event.botRight[2], kx)
+    std::lerp(event.colors[botLeft], event.colors[botRight], kx),
+    std::lerp(event.colors[botLeft + 1], event.colors[botRight + 1], kx),
+    std::lerp(event.colors[botLeft + 2], event.colors[botRight + 2], kx),
   };
 
   float result[3] = {
@@ -111,7 +138,7 @@ static ALLEGRO_COLOR bilinear_interpolation(int x, int y, int width, int height,
     std::lerp(topInterp[1], botInterp[1], ky),
     std::lerp(topInterp[2], botInterp[2], ky)
   };
-  return al_map_rgb_f(result[0], result[1], result[2]);*/
+  return al_map_rgb_f(result[0], result[1], result[2]);
 }
 
 static ALLEGRO_COLOR nearest_neighboor(int x, int y, int width, int height, const Menu::EventGenerateInterpolatedTexture& event) {
@@ -129,12 +156,107 @@ static ALLEGRO_COLOR nearest_neighboor(int x, int y, int width, int height, cons
   bool left = dx <= sectorWidth / 2;
   bool top = dy <= sectorHeight / 2;
 
-  const float* neighboor = left & top ? &event.colors[sectorLeftColumn + sectorTopRow * 4]
-                   : left & !top ? &event.colors[sectorLeftColumn + (sectorTopRow + 1) * 4]
-                   : !left & top ? &event.colors[sectorLeftColumn + 1 + sectorTopRow * 4]
-                   : &event.colors[(sectorLeftColumn + 1) + (sectorTopRow + 1) * 4];
+  int neighboorX = left ? sectorLeftColumn : sectorLeftColumn + 1;
+  int neighboorY = top ? sectorTopRow : sectorTopRow + 1;
+
+  const float* neighboor = &event.colors[(neighboorX + neighboorY * 4) * 3];
 
   return al_map_rgb_f(neighboor[0], neighboor[1], neighboor[2]);
+}
+
+static ALLEGRO_COLOR operator+(ALLEGRO_COLOR first, ALLEGRO_COLOR second) {
+  float c1[3];
+  al_unmap_rgb_f(first, &c1[0], &c1[1], &c1[2]);
+
+  float c2[3];
+  al_unmap_rgb_f(second, &c2[0], &c2[1], &c2[2]);
+
+  c1[0] += c2[0];
+  c1[1] += c2[1];
+  c1[2] += c2[2];
+
+  return al_map_rgb_f(c1[0], c1[1], c1[2]);
+}
+
+static ALLEGRO_COLOR operator*(float scalar, ALLEGRO_COLOR color) {
+  float f[3];
+  al_unmap_rgb_f(color, &f[0], &f[1], &f[2]);
+  f[0] *= scalar;
+  f[1] *= scalar;
+  f[2] *= scalar;
+  return al_map_rgb_f(f[0], f[1], f[2]);
+}
+
+static ALLEGRO_COLOR bicubic(int x, int y, int width, int height, const Menu::EventGenerateInterpolatedTexture& event) {
+  auto sectorWidth = width / 3;
+  auto sectorHeight = height / 3;
+
+  auto sectorLeftColumn = x / sectorWidth;
+  auto sectorLeft = sectorLeftColumn * sectorWidth;
+  auto dx = x - sectorLeft;
+
+  auto sectorTopRow = y / sectorHeight;
+  auto sectorTop = sectorTopRow * sectorHeight;
+  auto dy = y - sectorTop;
+  
+  if (sectorLeftColumn != 1 || sectorTopRow != 1) {
+    return al_map_rgb(255, 255, 255);
+  }
+
+  float dxn = float(dx) / float(sectorWidth);
+  float dyn = float(dy) / float(sectorHeight);
+
+  float x0 = dxn - 2.0f;
+  float x1 = dxn - 1.0f;
+  float x2 = dxn;
+  float x3 = dxn + 1.0f;
+
+  float y0 = dyn - 2.0f;
+  float y1 = dyn - 1.0f;
+  float y2 = dyn;
+  float y3 = dyn + 1.0f;
+
+  // formula taken from wikipedia :(
+  float b[16] = {
+    0.25f * (x1) * (x0) * (x3) * (y1) * (y0) * (y3),        // 1
+    - 0.25f * x2 * (x3) * (x0) * (y1) * (y0) * (y3),            // 2
+    - 0.25f * y2 * (x1) * (x0) * (x3) * (y3) * (y0),            // 3
+    0.25f * x2 * y2 * (x3) * (x0) * (y3) * (y0),                     // 4
+    - 1.0f / 12.0f * x2 * (x1) * (x0) * (y1) * (y0) * (y3),     // 5
+    - 1.0f / 12.0f * y2 * (x1) * (x0) * (x3) * (y1) * (y0),     // 6
+    1.0f / 12.0f * x2 * y2 * (x1) * (x0) * (y3) * (y0),             // 7
+    1.0f / 12.0f * x2 * y2 * (x3) * (x0) * (y1) * (y0),             // 8
+    1.0f / 12.0f * x2 * (x1) * (x3) * (y1) * (y0) * (y3),       // 9
+    1.0f / 12.0f * y2 * (x1) * (x0) * (x3) * (y1) * (y3),       // 10
+    1.0f / 36.0f * x2 * y2 * (x1) * (x0) * (y1) * (y0),             // 11
+    - 1.0f / 12.0f * x2 * y2 * (x1) * (x3) * (y3) * (y0),           // 12
+    - 1.0f / 12.0f * x2 * y2 * (x3) * (x0) * (y1) * (y3),           // 13
+    - 1.0f / 36.0f * x2 * y2 * (x1) * (x3) * (y1) * (y0),           // 14
+    - 1.0f / 36.0f * x2 * y2 * (x1) * (x0) * (y1) * (y3),           // 15
+    1.0f / 36.0f * x2 * y2 * (x1) * (x3) * (y1) * (y3)              // 16
+  };
+
+  auto v = [&event](int x, int y) {
+    const float* floats = &event.colors[(x + y * 4) * 3];
+    return al_map_rgb_f(floats[0], floats[1], floats[2]);
+  };
+
+  return b[0] * v(1, 1)
+    + b[1]  * v(1, 2)
+    + b[2]  * v(2, 1)
+    + b[3]  * v(2, 2)
+    + b[4]  * v(1, 0)
+    + b[5]  * v(0, 1)
+    + b[6]  * v(2, 0)
+    + b[7]  * v(0, 2)
+    + b[8]  * v(1, 3)
+    + b[9]  * v(3, 1)
+    + b[10] * v(0, 0)
+    + b[11] * v(2, 3)
+    + b[12] * v(3, 2)
+    + b[13] * v(0, 3)
+    + b[14] * v(3, 0)
+    + b[15] * v(3, 3);
 }
 
 static void generate_interpolated_texture(flecs::world& ecs, const Menu::EventGenerateInterpolatedTexture& event) {
@@ -154,6 +276,8 @@ static void generate_interpolated_texture(flecs::world& ecs, const Menu::EventGe
     interpolator = bilinear_interpolation;
   } else if (event.algorithm == Menu::EventGenerateInterpolatedTexture::Algorithm::nearest_neighboor) {
     interpolator = nearest_neighboor;
+  } else if (event.algorithm == Menu::EventGenerateInterpolatedTexture::Algorithm::bicubic) {
+    interpolator = bicubic;
   }
 
   for (int x = 0; x < width; ++x) {
