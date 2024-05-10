@@ -66,17 +66,14 @@ void generate_white_noise_texture(flecs::world& ecs, const Menu::EventGenerateWh
   }
   ecs.entity().emplace<NoiseTexture>(std::move(texture));
 }
-#include <spdlog/spdlog.h>
+
 TextureGenerationModule::TextureGenerationModule(flecs::world& ecs) {
   ecs.module<TextureGenerationModule>();   
 
   ecs.each([this](flecs::entity receiver, Menu::EventReceiver){
     m_menu_event_receiver = receiver;
   });
-
-  spdlog::info("menu event receiver: {}", m_menu_event_receiver);
-
-  
+ 
   m_menu_event_receiver
     .observe([&ecs](const Menu::EventGenerateWhiteNoiseTexture& event){
       generate_white_noise_texture(ecs, event);

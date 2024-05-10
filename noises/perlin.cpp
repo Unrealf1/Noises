@@ -70,7 +70,7 @@ float PerlinNoise::operator()(float x, float y) {
   auto result = std::lerp(topInterp, botInterp, vertInterpK);
 
   float cellDiagonal = std::sqrt(m_parameters.grid_step_x * m_parameters.grid_step_x + m_parameters.grid_step_y * m_parameters.grid_step_y);
-  float normalizedResult = result / cellDiagonal;
+  float normalizedResult = m_parameters.normalize_offsets ? result : result / cellDiagonal;
   return (1.0f + normalizedResult) / 2.0f;
 }
 
