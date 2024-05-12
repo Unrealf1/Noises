@@ -203,6 +203,68 @@ static ALLEGRO_COLOR bicubic(int x, int y, int width, int height, const Menu::Ev
     return al_map_rgb(255, 255, 255);
   }
 
+  // We want to interpolate with a cubic function p(x, y) of two variables
+  // That equals to the original function f(x, y) in known points
+  // And its derivatives are equal to the function derivatives in known points
+  // Known values of f here are values of the pixels in the corners of the sector
+  // Derivatives of f will be estimated by adjacent values. But in noise algorithms
+  // can be acquired directly
+
+  // For convenience, assume that top left sector corner is (0, 0)
+  // then x0 = 0; x1 = sectorWidth = w
+  //      y0 = 0; y1 = sectorHeight = h
+
+  // General form of the interpolating functino is this
+  // p(x, y) = a[i][j] * x^i * y^j for i in [0..3] for j in [0..3]
+  // Now we need to calculate a[i][j]. For that we will use constraints defined above and calculated derivatives:
+
+  // dp/dx(x, y) = a[i][j] * i * x^(i - 1) * y^j for i in [0..3] for j in [0..3]
+  // dp/dy(x, y) = a[i][j] * x^i * j * y^(j - 1) for i in [0..3] for j in [0..3]
+  // dp/dxy(x, y) = a[i][j] * i * x^(i - 1) * j * y^(j - 1) for i in [0..3] for j in [0..3]
+
+  // + f(0, 0) = p(0, 0) = a[0][0] , as other summands are zero
+  // + f(0, h) = p(0, h) = a[0][j] * 1 * h^j for j in [0..3]
+  // + f(w, 0) = p(w, 0) = a[i][0] * w^i * 1 for i in [0..3]
+  // f(w, h) = p(w, h) = a[i][j] * w^i * h^j for i in [0..3] for j in [0..3]
+
+  // + dp/dx(0, 0) = a[1][0]
+  // + dp/dx(0, h) = a[1][j] * h^j for j in [0..3]
+  // + dp/dx(w, 0) = a[i][0] * i * w^(i - 1) for i in [1..3] , NOTE THE RANGE OF `i`!
+  // dp/dx(w, h) = a[i][j] * i * w^(i - 1) * h^j for i in [1..3] for j in [0..3]
+
+  // + dp/dy(0, 0) = a[0][1]
+  // + dp/dy(0, h) = a[0][j] * j * h ^ (j - 1) for j in [1..3]
+  // + dp/dy(w, 0) = a[i][1] * w ^ i for i in [0..3]
+  // dp/dy(w, h) = a[i][j] * w ^ i * j * h^(j - 1) for i in [0..3] for j in [1..3]
+
+  // + dp/dxdy(0, 0) = a[1][1]
+  // + dp/dxdy(0, h) = a[1][j] * j * h^(j - 1) for j in [1..3]
+  // + dp/dxy(w, 0) = a[i][1] * i * w^(i - 1) for i in [1..3]
+  // dp/dxy(w, h) = a[i][j] * i * w^(i - 1) * j * h^(j - 1) for i in [1..3] for j in [1..3]
+
+  // Now we have 16 linear equations with 16 unknown values, as everything but a[i][j] is already known
+  // This is the solution:
+  // a[0][0] = f(0, 0)
+  // a[1][0] = df/dx(0, 0)
+  // a[0][1] = df/dy(0, 0)
+  // a[1][1] = df/dxy(0, 0)
+
+  // a[0][2] = ( 3 * f(0, h) - 3 * a[0][0] - 2 * a[0][1] * h - h * df/dy(0, h) ) / (h^2)
+  // a[0][3] = ( h * df/dy(0, h) + a[0][1] * h - 2 * f(0, h) + 2 * a[0][0] ) / (h^3)
+  // a[2][0] = ( 3 * f(w, 0) - 3 * a[0][0] - 2 * a[1][0] * w - w * df/dx(w, 0) ) / (w^2)
+  // a[3][0] = ( w * df/dx(w, 0) + a[1][0] * w - 2 * f(w, 0) + 2 * a[0][0] ) / (w^3)
+
+  // a[1][2] = ( 3 * df/dx(0, h) - 3 * a[1][0] - 2 * h * a[1][1] - df/dxy(0, h) * h ) / (h^2)
+  // a[1][3] = ( h * df/dxy(0, h) + a[1][1] * h - 2 * df/dx(0, h) + 2 * a[1][0] ) / (h^3)
+  // a[2][1] = ( 3 * df/dy(w, 0) - 3 * a[0][1] - 2 * w * a[1][1] - df/dxy(w, 0) * w ) / (w^2)
+  // a[3][1] = ( w * df/dxy(w, 0) + a[1][1] * w - 2 * df/dy(w, 0) + 2 * a[0][1] ) / (w^3)
+
+  // a[2][2] = ?
+  // a[2][3] = ?
+  // a[3][2] = ?
+  // a[3][3] = ?
+
+
   float dxn = float(dx) / float(sectorWidth);
   float dyn = float(dy) / float(sectorHeight);
 
