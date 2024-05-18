@@ -104,12 +104,9 @@ static ALLEGRO_COLOR bilinear_interpolation(int x, int y, int width, int height,
   float ky = float(dy) / float(sectorHeight);
 
   int left = sectorLeftColumn;
-  int right = sectorLeftColumn + 1;
+  int right = std::min(sectorLeftColumn + 1, 3);
   int top = sectorTopRow;
-  int bot = sectorTopRow + 1;
-  if (left < 0 || right >= 4 || top < 0 || bot >= 4) {
-    return al_map_rgb(255, 255, 255);
-  }
+  int bot = std::min(sectorTopRow + 1, 3);
 
   auto index = [](int x, int y) {
     return (x + y * 4) * 3;
@@ -178,6 +175,30 @@ static ALLEGRO_COLOR operator+(ALLEGRO_COLOR first, ALLEGRO_COLOR second) {
   return al_map_rgb_f(c1[0], c1[1], c1[2]);
 }
 
+static ALLEGRO_COLOR operator-(ALLEGRO_COLOR first, ALLEGRO_COLOR second) {
+  float c1[3];
+  al_unmap_rgb_f(first, &c1[0], &c1[1], &c1[2]);
+
+  float c2[3];
+  al_unmap_rgb_f(second, &c2[0], &c2[1], &c2[2]);
+
+  c1[0] -= c2[0];
+  c1[1] -= c2[1];
+  c1[2] -= c2[2];
+
+  return al_map_rgb_f(c1[0], c1[1], c1[2]);
+}
+
+static ALLEGRO_COLOR operator-=(ALLEGRO_COLOR& first, ALLEGRO_COLOR second) {
+  first = first - second;
+  return first;
+}
+
+static ALLEGRO_COLOR operator+=(ALLEGRO_COLOR& first, ALLEGRO_COLOR second) {
+  first = first + second;
+  return first;
+}
+
 static ALLEGRO_COLOR operator*(float scalar, ALLEGRO_COLOR color) {
   float f[3];
   al_unmap_rgb_f(color, &f[0], &f[1], &f[2]);
@@ -185,6 +206,14 @@ static ALLEGRO_COLOR operator*(float scalar, ALLEGRO_COLOR color) {
   f[1] *= scalar;
   f[2] *= scalar;
   return al_map_rgb_f(f[0], f[1], f[2]);
+}
+
+static ALLEGRO_COLOR operator*(ALLEGRO_COLOR color, float scalar) {
+  return scalar * color;
+}
+
+static ALLEGRO_COLOR operator/(ALLEGRO_COLOR color, float scalar) {
+  return (1.0f / scalar) * color;
 }
 
 static ALLEGRO_COLOR bicubic(int x, int y, int width, int height, const Menu::EventGenerateInterpolatedTexture& event) {
@@ -199,10 +228,6 @@ static ALLEGRO_COLOR bicubic(int x, int y, int width, int height, const Menu::Ev
   auto sectorTop = sectorTopRow * sectorHeight;
   auto dy = y - sectorTop;
   
-  if (sectorLeftColumn != 1 || sectorTopRow != 1) {
-    return al_map_rgb(255, 255, 255);
-  }
-
   // We want to interpolate with a cubic function p(x, y) of two variables
   // That equals to the original function f(x, y) in known points
   // And its derivatives are equal to the function derivatives in known points
@@ -263,62 +288,106 @@ static ALLEGRO_COLOR bicubic(int x, int y, int width, int height, const Menu::Ev
   // a[2][3] = ?
   // a[3][2] = ?
   // a[3][3] = ?
-
-
-  float dxn = float(dx) / float(sectorWidth);
-  float dyn = float(dy) / float(sectorHeight);
-
-  float x0 = dxn - 2.0f;
-  float x1 = dxn - 1.0f;
-  float x2 = dxn;
-  float x3 = dxn + 1.0f;
-
-  float y0 = dyn - 2.0f;
-  float y1 = dyn - 1.0f;
-  float y2 = dyn;
-  float y3 = dyn + 1.0f;
-
-  // formula taken from wikipedia :(
-  float b[16] = {
-    0.25f * (x1) * (x0) * (x3) * (y1) * (y0) * (y3),        // 1
-    - 0.25f * x2 * (x3) * (x0) * (y1) * (y0) * (y3),            // 2
-    - 0.25f * y2 * (x1) * (x0) * (x3) * (y3) * (y0),            // 3
-    0.25f * x2 * y2 * (x3) * (x0) * (y3) * (y0),                     // 4
-    - 1.0f / 12.0f * x2 * (x1) * (x0) * (y1) * (y0) * (y3),     // 5
-    - 1.0f / 12.0f * y2 * (x1) * (x0) * (x3) * (y1) * (y0),     // 6
-    1.0f / 12.0f * x2 * y2 * (x1) * (x0) * (y3) * (y0),             // 7
-    1.0f / 12.0f * x2 * y2 * (x3) * (x0) * (y1) * (y0),             // 8
-    1.0f / 12.0f * x2 * (x1) * (x3) * (y1) * (y0) * (y3),       // 9
-    1.0f / 12.0f * y2 * (x1) * (x0) * (x3) * (y1) * (y3),       // 10
-    1.0f / 36.0f * x2 * y2 * (x1) * (x0) * (y1) * (y0),             // 11
-    - 1.0f / 12.0f * x2 * y2 * (x1) * (x3) * (y3) * (y0),           // 12
-    - 1.0f / 12.0f * x2 * y2 * (x3) * (x0) * (y1) * (y3),           // 13
-    - 1.0f / 36.0f * x2 * y2 * (x1) * (x3) * (y1) * (y0),           // 14
-    - 1.0f / 36.0f * x2 * y2 * (x1) * (x0) * (y1) * (y3),           // 15
-    1.0f / 36.0f * x2 * y2 * (x1) * (x3) * (y1) * (y3)              // 16
+  ALLEGRO_COLOR a[16];
+  auto idx = [](int x, int y) { return x + y * 4; };
+  auto A = [&a, &idx](int x, int y) -> ALLEGRO_COLOR& { return a[idx(x, y)]; };
+  auto F = [&event, &idx, &sectorLeftColumn, &sectorTopRow](int x, int y) -> ALLEGRO_COLOR {
+    const float* ptr = &(event.colors[idx(sectorLeftColumn + x, sectorTopRow + y) * 3]);
+    return al_map_rgb_f(ptr[0], ptr[1], ptr[2]);
+  };
+  const auto zeroDerivative = al_map_rgb(0, 0, 0);
+  auto dFx = [&F, &sectorWidth, &sectorLeftColumn, &zeroDerivative](int x, int y) {
+    return sectorLeftColumn == 1 ? (1.0f / float(sectorWidth)) * (F(x + 1, y) - F(x - 1, y)) : zeroDerivative;
+  };
+  auto dFy = [&F, &sectorHeight, &sectorTopRow, &zeroDerivative](int x, int y) {
+    return sectorTopRow == 1 ? (1.0f / float(sectorHeight)) * (F(x, y + 1) - F(x, y - 1)) : zeroDerivative;
+  };
+  auto dFxy = [&dFx, &sectorHeight, &sectorLeftColumn, &sectorTopRow, &zeroDerivative](int x, int y) {
+    return sectorLeftColumn == 1 && sectorTopRow == 1
+      ? (1.0f / float(sectorHeight)) * (dFx(x, y + 1) - dFx(x, y - 1))
+      : zeroDerivative;
   };
 
-  auto v = [&event](int x, int y) {
-    const float* floats = &event.colors[(x + y * 4) * 3];
-    return al_map_rgb_f(floats[0], floats[1], floats[2]);
-  };
+  float w = float(sectorWidth);
+  float w2 = w * w;
+  float w3 = w2 * w;
 
-  return b[0] * v(1, 1)
-    + b[1]  * v(1, 2)
-    + b[2]  * v(2, 1)
-    + b[3]  * v(2, 2)
-    + b[4]  * v(1, 0)
-    + b[5]  * v(0, 1)
-    + b[6]  * v(2, 0)
-    + b[7]  * v(0, 2)
-    + b[8]  * v(1, 3)
-    + b[9]  * v(3, 1)
-    + b[10] * v(0, 0)
-    + b[11] * v(2, 3)
-    + b[12] * v(3, 2)
-    + b[13] * v(0, 3)
-    + b[14] * v(3, 0)
-    + b[15] * v(3, 3);
+  float h = float(sectorHeight);
+  float h2 = h * h;
+  float h3 = h2 * h;
+
+  A(0, 0) = F(0, 0);
+  A(1, 0) = dFx(0, 0);
+  A(0, 1) = dFy(0, 0);
+  A(1, 1) = dFxy(0, 0);
+
+  A(0, 2) = ( 3 * F(0, 1) - 3 * A(0, 0) - 2 * A(0, 1) * h - h * dFy(0, 1) ) / h2;
+  A(0, 3) = ( h * dFy(0, 1) + A(0, 1) * h - 2 * F(0, 1) + 2 * A(0, 0) ) / h3;
+  A(2, 0) = ( 3 * F(1, 0) - 3 * A(0, 0) - 2 * A(1, 0) * w - w * dFx(1, 0) ) / w2;
+  A(3, 0) = ( w * dFx(1, 0) + A(1, 0) * w - 2 * F(1, 0) + 2 * A(0, 0) ) / w3;
+
+  A(1, 2) = ( 3 * dFx(0, 1) - 3 * A(1, 0) - 2 * h * A(1, 1) - dFxy(0, 1) * h ) / h2;
+  A(1, 3) = ( h * dFxy(0, 1) + A(1, 1) * h - 2 * dFx(0, 1) + 2 * A(1, 0) ) / h3;
+  A(2, 1) = ( 3 * dFy(1, 0) - 3 * A(0, 1) - 2 * w * A(1, 1) - dFxy(1, 0) * w ) / w2;
+  A(3, 1) = ( w * dFxy(1, 0) + A(1, 1) * w - 2 * dFy(1, 0) + 2 * A(0, 1) ) / w3;
+
+  ALLEGRO_COLOR C[4];
+  float ws[] = {1.0f, w, w2, w3};
+  float hs[] = {1.0f, h, h2, h3};
+  C[0] = F(1, 1);
+  for (int i = 0; i < 4; ++i) {
+    for (int j = 0; j < 4; ++j) {
+      if (i >= 2 && j >= 2) {
+        continue;
+      }
+      C[0] -= A(i, j) * ws[i] * hs[j];
+    }
+  }
+
+  C[1] = dFx(1, 1);
+  for (int i = 1; i < 4; ++i) {
+    for (int j = 0; j < 4; ++j) {
+      if (i >= 2 && j >= 2) {
+        continue;
+      }
+      C[1] -= float(i) * A(i, j) * ws[i - 1] * hs[j];
+    }
+  }
+
+  C[2] = dFy(1, 1);
+  for (int i = 0; i < 4; ++i) {
+    for (int j = 1; j < 4; ++j) {
+      if (i >= 2 && j >= 2) {
+        continue;
+      }
+      C[2] -= float(j) * A(i, j) * ws[i] * hs[j - 1];
+    }
+  }
+
+  C[3] = dFxy(1, 1);
+  for (int i = 1; i < 4; ++i) {
+    for (int j = 1; j < 4; ++j) {
+      if (i >= 2 && j >= 2) {
+        continue;
+      }
+      C[3] -= float(i) * float(j) * A(i, j) * ws[i - 1] * hs[j - 1];
+    }
+  }
+
+  A(3, 2) = ( 2 * C[2] * h + 3 * C[1] * w - C[3] * w * h - 6 * C[0] ) / ( 6 * w3 * h3 );
+  A(3, 3) = ( C[1] * w - 2 * C[0] - A(3, 2) * w3 * h2 ) / (w3 * h3);
+  A(2, 3) = ( 4 * A(3, 2) * w3 * h2 + C[3] * w * h + 6 * C[0] - 5 * C[1] * w ) / ( 2 * w2 * h3);
+  A(2, 2) = ( 3 * C[1] * w - C[3] * w * h - 4 * A(3, 2) * w3 * h2 ) / (2 * w2 * h2);
+
+  ALLEGRO_COLOR result = al_map_rgb(0, 0, 0);
+  float dxs[4] = { 1.0f, dx, dx * dx, dx * dx * dx };
+  float dys[4] = { 1.0f, dy, dy * dy, dy * dy * dy };
+  for (int i = 0; i < 4; ++i) {
+    for (int j = 0; j < 4; ++j) {
+      result += A(i, j) * dxs[i] * dys[j];
+    }
+  }
+  return result;
 }
 
 static void generate_interpolated_texture(flecs::world& ecs, const Menu::EventGenerateInterpolatedTexture& event) {

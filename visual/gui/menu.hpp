@@ -28,22 +28,10 @@ public:
   struct EventGenerateInterpolatedTexture {
     int size[2] = {500, 500};
     float colors[3 * 16] = {
-      1, 0, 0,
-      0, 1, 0,
-      0, 0, 1,
-      0, 0, 0,
-      1, 1, 1,
-      0, 1, 1,
-      1, 0, 1,
-      1, 1, 0,
-      1, 0, 0,
-      0, 1, 0,
-      0, 0, 1,
-      0, 0, 0,
-      1, 1, 1,
-      0, 1, 1,
-      1, 0, 1,
-      1, 1, 0
+      1, 0, 0,  1, 0, 0,  0, 0, 1,  0, 0, 1,
+      1, 0, 0,  1, 0, 0,  0, 0, 1,  0, 0, 1,
+      0, 1, 0,  0, 1, 0,  1, 1, 1,  1, 1, 1,
+      0, 1, 0,  0, 1, 0,  1, 1, 1,  1, 1, 1
     };
     enum class Algorithm {
       bilinear, bicubic, nearest_neighboor
