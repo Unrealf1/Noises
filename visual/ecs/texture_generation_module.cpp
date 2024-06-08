@@ -2,6 +2,7 @@
 
 #include <gui/menu.hpp>
 #include <render/noise_texture.hpp>
+#include <math.hpp>
 #include <perlin.hpp>
 #include <random>
 #include <ctime>
@@ -161,58 +162,6 @@ static ALLEGRO_COLOR nearest_neighboor(int x, int y, int width, int height, cons
   return al_map_rgb_f(neighboor[0], neighboor[1], neighboor[2]);
 }
 
-struct vec3{
-  float x;
-  float y;
-  float z;
-
-  vec3& operator+=(const vec3& other) {
-    x += other.x;
-    y += other.y;
-    z += other.z;
-    return *this;
-  }
-
-  vec3& operator-=(const vec3& other) {
-    x -= other.x;
-    y -= other.y;
-    z -= other.z;
-    return *this;
-  }
-
-  vec3& operator*=(float scalar) {
-    x *= scalar;
-    y *= scalar;
-    z *= scalar;
-    return *this;
-  }
-
-  vec3& operator/=(float scalar) {
-    x /= scalar;
-    y /= scalar;
-    z /= scalar;
-    return *this;
-  }
-};
-
-vec3 operator+(const vec3& first, const vec3& second) {
-  auto copy = first;
-  return copy += second;
-}
-
-vec3 operator-(const vec3& first, const vec3& second) {
-  auto copy = first;
-  return copy -= second;
-}
-
-vec3 operator*(float scalar, const vec3& vec) {
-  auto copy = vec;
-  return copy *= scalar;
-}
-
-vec3 operator*(const vec3& vec, float scalar) {
-  return scalar * vec;
-}
 
 static ALLEGRO_COLOR bicubic_wiki(int x, int y, int width, int height, const Menu::EventGenerateInterpolatedTexture& event) {
   auto sectorWidth = width / 3;
