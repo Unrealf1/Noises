@@ -237,7 +237,9 @@ static BicubicCoefficients calc_bicubic_coefficients(int left_column, int top_ro
   return wikiCoefs;
 }
 
-static ALLEGRO_COLOR bicubic_wiki(int x, int y, int width, int height, const Menu::EventGenerateInterpolatedTexture& event) {
+static BicubicCoefficients s_bicubic_coefs[9];
+
+static ALLEGRO_COLOR bicubic_wiki(int x, int y, int width, int height, const Menu::EventGenerateInterpolatedTexture&) {
   auto [sectorWidth, sectorHeight, sectorLeftColumn, sectorTopRow, dx, dy] = calc_sector_coords(x, y, width, height);
 
   if (sectorTopRow >= 3) {
@@ -250,7 +252,7 @@ static ALLEGRO_COLOR bicubic_wiki(int x, int y, int width, int height, const Men
     dx = width - 1;
   }
 
-  auto coefs = calc_bicubic_coefficients(sectorLeftColumn, sectorTopRow, sectorWidth, sectorHeight, event);
+  const auto& coefs = s_bicubic_coefs[sectorLeftColumn + sectorTopRow * 3];
 
   vec3 wikiRes(0, 0, 0);
 
@@ -289,6 +291,11 @@ static void generate_interpolated_texture(flecs::world& ecs, const Menu::EventGe
   } else if (event.algorithm == Menu::EventGenerateInterpolatedTexture::Algorithm::nearest_neighboor) {
     interpolator = nearest_neighboor;
   } else if (event.algorithm == Menu::EventGenerateInterpolatedTexture::Algorithm::bicubic) {
+    for (int i = 0; i < 3; ++i) {
+      for (int j = 0; j < 3; ++j) {
+        s_bicubic_coefs[i + j * 3] = calc_bicubic_coefficients(i, j, width / 3, height / 3, event);
+      }
+    }
     interpolator = bicubic_wiki;
   }
 
