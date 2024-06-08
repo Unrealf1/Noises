@@ -1,7 +1,8 @@
 * Algorithms
   - White noise
   * Perlin noise
-      * bicubic interpolation
+      + bicubic interpolation
+      - make generic interpolation implementations and use one in perlin
   - Simplex noise
   - Other colored noises, i.e. brown
 
@@ -27,6 +28,7 @@
     ? See statistics (what statisctics?)
   - Custom additional visualization per algorithm
     -   Grid vectors for perlin
+    -   Places of "true" pixels in interpolation
   - Rework Pan with 2d camera in mind
   - Infinite grid
   ? Save texture to a file
