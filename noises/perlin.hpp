@@ -25,9 +25,9 @@ class PerlinNoise {
 public:
   PerlinNoise(const PerlinNoiseParameters& parameters, auto& random_generator)
   : m_parameters(parameters)
-  , m_grid_data(parameters.grid_size_x * parameters.grid_size_y * 2) {
+  , m_grid_data(size_t(parameters.grid_size_x * parameters.grid_size_y * 2)) {
     std::uniform_real_distribution<float> angleDistr(0.0f, std::numbers::pi_v<float> * 2.0f);
-    for (int i = 0; i < m_grid_data.size(); i += 2) {
+    for (size_t i = 0; i < m_grid_data.size(); i += 2) {
       float angle = angleDistr(random_generator);
 
       float dx = std::cos(angle);

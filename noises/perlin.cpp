@@ -53,10 +53,10 @@ float PerlinNoise::operator()(float x, float y) {
     botLeftOffset[1] /= botLeftOffsetLen;
   }
 
-  float* topLeftValue = &m_grid_data[(left + top * m_parameters.grid_size_x) * 2];
-  float* topRightValue = &m_grid_data[(right + top * m_parameters.grid_size_x) * 2];
-  float* botRightValue = &m_grid_data[(right + bot * m_parameters.grid_size_x) * 2];
-  float* botLeftValue = &m_grid_data[(left + bot * m_parameters.grid_size_x) * 2];
+  float* topLeftValue = &m_grid_data[size_t(left + top * m_parameters.grid_size_x) * 2];
+  float* topRightValue = &m_grid_data[size_t(right + top * m_parameters.grid_size_x) * 2];
+  float* botRightValue = &m_grid_data[size_t(right + bot * m_parameters.grid_size_x) * 2];
+  float* botLeftValue = &m_grid_data[size_t(left + bot * m_parameters.grid_size_x) * 2];
 
   float topLeftDot = topLeftOffset[0] * topLeftValue[0] + topLeftOffset[1] * topLeftValue[1];
   float topRightDot = topRightOffset[0] * topRightValue[0] + topRightOffset[1] * topRightValue[1];
@@ -114,8 +114,8 @@ float PerlinNoise::operator()(float x, float y) {
           pos[1] = m_parameters.grid_step_y * float(globalY);
 
           float vec[2];
-          vec[0] = m_grid_data[(globalX + globalY * m_parameters.grid_size_x) * 2];
-          vec[1] = m_grid_data[(globalX + globalY * m_parameters.grid_size_x) * 2 + 1];
+          vec[0] = m_grid_data[size_t(globalX + globalY * m_parameters.grid_size_x) * 2];
+          vec[1] = m_grid_data[size_t(globalX + globalY * m_parameters.grid_size_x) * 2 + 1];
           allDots[index] = dot(pos, vec);
         }
       }
