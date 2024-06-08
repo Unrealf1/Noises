@@ -89,7 +89,18 @@ static void generate_white_noise_texture(flecs::world& ecs, const Menu::EventGen
   ecs.entity().emplace<NoiseTexture>(std::move(texture));
 }
 
-static ALLEGRO_COLOR bilinear_interpolation(int x, int y, int width, int height, const Menu::EventGenerateInterpolatedTexture& event) {
+struct SectorCoords {
+  int width;
+  int height;
+
+  int leftColumn;
+  int topRow;
+
+  int dx;
+  int dy;
+};
+
+static SectorCoords calc_sector_coords(int x, int y, int width, int height) {
   auto sectorWidth = width / 3;
   auto sectorHeight = height / 3;
 
@@ -100,6 +111,19 @@ static ALLEGRO_COLOR bilinear_interpolation(int x, int y, int width, int height,
   auto sectorTopRow = y / sectorHeight;
   auto sectorTop = sectorTopRow * sectorHeight;
   auto dy = y - sectorTop;
+
+  return {
+    .width = sectorWidth,
+    .height = sectorHeight,
+    .leftColumn = sectorLeftColumn,
+    .topRow = sectorTopRow,
+    .dx = dx,
+    .dy = dy
+  };
+}
+
+static ALLEGRO_COLOR bilinear_interpolation(int x, int y, int width, int height, const Menu::EventGenerateInterpolatedTexture& event) {
+  auto [sectorWidth, sectorHeight, sectorLeftColumn, sectorTopRow, dx, dy] = calc_sector_coords(x, y, width, height);
  
   float kx = float(dx) / float(sectorWidth);
   float ky = float(dy) / float(sectorHeight);
@@ -140,16 +164,7 @@ static ALLEGRO_COLOR bilinear_interpolation(int x, int y, int width, int height,
 }
 
 static ALLEGRO_COLOR nearest_neighboor(int x, int y, int width, int height, const Menu::EventGenerateInterpolatedTexture& event) {
-  auto sectorWidth = width / 3;
-  auto sectorHeight = height / 3;
-
-  auto sectorLeftColumn = x / sectorWidth;
-  auto sectorLeft = sectorLeftColumn * sectorWidth;
-  auto dx = x - sectorLeft;
-
-  auto sectorTopRow = y / sectorHeight;
-  auto sectorTop = sectorTopRow * sectorHeight;
-  auto dy = y - sectorTop;
+  auto [sectorWidth, sectorHeight, sectorLeftColumn, sectorTopRow, dx, dy] = calc_sector_coords(x, y, width, height);
 
   bool left = dx <= sectorWidth / 2;
   bool top = dy <= sectorHeight / 2;
@@ -162,51 +177,29 @@ static ALLEGRO_COLOR nearest_neighboor(int x, int y, int width, int height, cons
   return al_map_rgb_f(neighboor[0], neighboor[1], neighboor[2]);
 }
 
+struct BicubicCoefficients{
+  vec3 a[16];
+};
 
-static ALLEGRO_COLOR bicubic_wiki(int x, int y, int width, int height, const Menu::EventGenerateInterpolatedTexture& event) {
-  auto sectorWidth = width / 3;
-  auto sectorHeight = height / 3;
-
-  auto sectorLeftColumn = x / sectorWidth;
-  auto sectorLeft = sectorLeftColumn * sectorWidth;
-  auto dx = x - sectorLeft;
-
-  auto sectorTopRow = y / sectorHeight;
-  auto sectorTop = sectorTopRow * sectorHeight;
-  auto dy = y - sectorTop;
-
-  if (sectorTopRow >= 3) {
-    sectorTopRow = 2;
-    dy = height - 1;
-  }
-
-  if (sectorLeftColumn >= 3) {
-    sectorLeftColumn = 2;
-    dx = width - 1;
-  }
-
+static BicubicCoefficients calc_bicubic_coefficients(int left_column, int top_row, int sector_width, int sector_height, const Menu::EventGenerateInterpolatedTexture& event) {
   auto idx = [](int x, int y) { return x + y * 4; };
-  auto F = [&event, &idx, &sectorLeftColumn, &sectorTopRow](int x, int y) -> vec3 {
-    const float* ptr = &(event.colors[idx(sectorLeftColumn + x, sectorTopRow + y) * 3]);
+  auto F = [&event, &idx, &left_column, &top_row](int x, int y) -> vec3 {
+    const float* ptr = &(event.colors[idx(left_column + x, top_row + y) * 3]);
     return vec3(ptr[0], ptr[1], ptr[2]);
   };
 
   const auto zeroDerivative = vec3(0, 0, 0);
-  auto dFx = [&F, &sectorWidth, &sectorLeftColumn, &zeroDerivative](int x, int y) {
-    return sectorLeftColumn == 1 ? (1.0f / float(sectorWidth)) * (F(x + 1, y) - F(x - 1, y)) : zeroDerivative;
+  auto dFx = [&F, &sector_width, &left_column, &zeroDerivative](int x, int y) {
+    return left_column == 1 ? (1.0f / float(sector_width)) * (F(x + 1, y) - F(x - 1, y)) : zeroDerivative;
   };
-  auto dFy = [&F, &sectorHeight, &sectorTopRow, &zeroDerivative](int x, int y) {
-    return sectorTopRow == 1 ? (1.0f / float(sectorHeight)) * (F(x, y + 1) - F(x, y - 1)) : zeroDerivative;
+  auto dFy = [&F, &sector_height, &top_row, &zeroDerivative](int x, int y) {
+    return top_row == 1 ? (1.0f / float(sector_height)) * (F(x, y + 1) - F(x, y - 1)) : zeroDerivative;
   };
-  auto dFxy = [&dFx, &sectorHeight, &sectorLeftColumn, &sectorTopRow, &zeroDerivative](int x, int y) {
-    return sectorLeftColumn == 1 && sectorTopRow == 1
-      ? (1.0f / float(sectorHeight)) * (dFx(x, y + 1) - dFx(x, y - 1))
+  auto dFxy = [&dFx, &sector_height, &left_column, &top_row, &zeroDerivative](int x, int y) {
+    return left_column == 1 && top_row == 1
+      ? (1.0f / float(sector_height)) * (dFx(x, y + 1) - dFx(x, y - 1))
       : zeroDerivative;
   };
-
-  float w = float(sectorWidth);
-
-  float h = float(sectorHeight);
 
   float wikiInverseA[16 * 16] = {
     1,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
@@ -234,25 +227,45 @@ static ALLEGRO_COLOR bicubic_wiki(int x, int y, int width, int height, const Men
     dFxy(0, 0), dFxy(1, 0), dFxy(0, 1), dFxy(1, 1)
   };
 
-  vec3 wikiCoefs[16]{};
+  BicubicCoefficients wikiCoefs{};
   for (int i = 0; i < 16; ++i) {
-    wikiCoefs[i] = vec3{0.f,0.f,0.f};
+    wikiCoefs.a[i] = vec3{0.f,0.f,0.f};
     for (int j = 0; j < 16; ++j) {
-      wikiCoefs[i] += wikiInverseA[16 * i + j] * wikiX[j]; 
+      wikiCoefs.a[i] += wikiInverseA[16 * i + j] * wikiX[j];
     }
   }
+  return wikiCoefs;
+}
+
+static ALLEGRO_COLOR bicubic_wiki(int x, int y, int width, int height, const Menu::EventGenerateInterpolatedTexture& event) {
+  auto [sectorWidth, sectorHeight, sectorLeftColumn, sectorTopRow, dx, dy] = calc_sector_coords(x, y, width, height);
+
+  if (sectorTopRow >= 3) {
+    sectorTopRow = 2;
+    dy = height - 1;
+  }
+
+  if (sectorLeftColumn >= 3) {
+    sectorLeftColumn = 2;
+    dx = width - 1;
+  }
+
+  auto coefs = calc_bicubic_coefficients(sectorLeftColumn, sectorTopRow, sectorWidth, sectorHeight, event);
 
   vec3 wikiRes(0, 0, 0);
 
-  float ndx = float(dx) / w;
-  float xs[4] = { 1.f, ndx, ndx * ndx, ndx * ndx * ndx };
+  const float w = float(sectorWidth);
+  const float h = float(sectorHeight);
 
-  float ndy = float(dy) / h;
-  float ys[4] = { 1.f, ndy, ndy * ndy, ndy * ndy * ndy };
+  const float ndx = float(dx) / w;
+  const float xs[4] = { 1.f, ndx, ndx * ndx, ndx * ndx * ndx };
+
+  const float ndy = float(dy) / h;
+  const float ys[4] = { 1.f, ndy, ndy * ndy, ndy * ndy * ndy };
 
   for (int i = 0; i < 4; ++i) {
     for (int j = 0; j < 4; ++j) {
-      wikiRes += wikiCoefs[4 * j + i] * xs[i] * ys[j];
+      wikiRes += coefs.a[4 * j + i] * xs[i] * ys[j];
     }
   }
   return al_map_rgb_f(wikiRes.x, wikiRes.y, wikiRes.z);
