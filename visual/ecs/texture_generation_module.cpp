@@ -161,62 +161,60 @@ static ALLEGRO_COLOR nearest_neighboor(int x, int y, int width, int height, cons
   return al_map_rgb_f(neighboor[0], neighboor[1], neighboor[2]);
 }
 
-static ALLEGRO_COLOR operator+(ALLEGRO_COLOR first, ALLEGRO_COLOR second) {
-  float c1[3];
-  al_unmap_rgb_f(first, &c1[0], &c1[1], &c1[2]);
+struct vec3{
+  float x;
+  float y;
+  float z;
 
-  float c2[3];
-  al_unmap_rgb_f(second, &c2[0], &c2[1], &c2[2]);
+  vec3& operator+=(const vec3& other) {
+    x += other.x;
+    y += other.y;
+    z += other.z;
+    return *this;
+  }
 
-  c1[0] += c2[0];
-  c1[1] += c2[1];
-  c1[2] += c2[2];
+  vec3& operator-=(const vec3& other) {
+    x -= other.x;
+    y -= other.y;
+    z -= other.z;
+    return *this;
+  }
 
-  return al_map_rgb_f(c1[0], c1[1], c1[2]);
+  vec3& operator*=(float scalar) {
+    x *= scalar;
+    y *= scalar;
+    z *= scalar;
+    return *this;
+  }
+
+  vec3& operator/=(float scalar) {
+    x /= scalar;
+    y /= scalar;
+    z /= scalar;
+    return *this;
+  }
+};
+
+vec3 operator+(const vec3& first, const vec3& second) {
+  auto copy = first;
+  return copy += second;
 }
 
-static ALLEGRO_COLOR operator-(ALLEGRO_COLOR first, ALLEGRO_COLOR second) {
-  float c1[3];
-  al_unmap_rgb_f(first, &c1[0], &c1[1], &c1[2]);
-
-  float c2[3];
-  al_unmap_rgb_f(second, &c2[0], &c2[1], &c2[2]);
-
-  c1[0] -= c2[0];
-  c1[1] -= c2[1];
-  c1[2] -= c2[2];
-
-  return al_map_rgb_f(c1[0], c1[1], c1[2]);
+vec3 operator-(const vec3& first, const vec3& second) {
+  auto copy = first;
+  return copy -= second;
 }
 
-static ALLEGRO_COLOR operator-=(ALLEGRO_COLOR& first, ALLEGRO_COLOR second) {
-  first = first - second;
-  return first;
+vec3 operator*(float scalar, const vec3& vec) {
+  auto copy = vec;
+  return copy *= scalar;
 }
 
-static ALLEGRO_COLOR operator+=(ALLEGRO_COLOR& first, ALLEGRO_COLOR second) {
-  first = first + second;
-  return first;
+vec3 operator*(const vec3& vec, float scalar) {
+  return scalar * vec;
 }
 
-static ALLEGRO_COLOR operator*(float scalar, ALLEGRO_COLOR color) {
-  float f[3];
-  al_unmap_rgb_f(color, &f[0], &f[1], &f[2]);
-  f[0] *= scalar;
-  f[1] *= scalar;
-  f[2] *= scalar;
-  return al_map_rgb_f(f[0], f[1], f[2]);
-}
-
-static ALLEGRO_COLOR operator*(ALLEGRO_COLOR color, float scalar) {
-  return scalar * color;
-}
-
-static ALLEGRO_COLOR operator/(ALLEGRO_COLOR color, float scalar) {
-  return (1.0f / scalar) * color;
-}
-
-static ALLEGRO_COLOR bicubic(int x, int y, int width, int height, const Menu::EventGenerateInterpolatedTexture& event) {
+static ALLEGRO_COLOR bicubic_wiki(int x, int y, int width, int height, const Menu::EventGenerateInterpolatedTexture& event) {
   auto sectorWidth = width / 3;
   auto sectorHeight = height / 3;
 
@@ -227,75 +225,24 @@ static ALLEGRO_COLOR bicubic(int x, int y, int width, int height, const Menu::Ev
   auto sectorTopRow = y / sectorHeight;
   auto sectorTop = sectorTopRow * sectorHeight;
   auto dy = y - sectorTop;
-  
-  // We want to interpolate with a cubic function p(x, y) of two variables
-  // That equals to the original function f(x, y) in known points
-  // And its derivatives are equal to the function derivatives in known points
-  // Known values of f here are values of the pixels in the corners of the sector
-  // Derivatives of f will be estimated by adjacent values. But in noise algorithms
-  // can be acquired directly
 
-  // For convenience, assume that top left sector corner is (0, 0)
-  // then x0 = 0; x1 = sectorWidth = w
-  //      y0 = 0; y1 = sectorHeight = h
+  if (sectorTopRow >= 3) {
+    sectorTopRow = 2;
+    dy = height - 1;
+  }
 
-  // General form of the interpolating functino is this
-  // p(x, y) = a[i][j] * x^i * y^j for i in [0..3] for j in [0..3]
-  // Now we need to calculate a[i][j]. For that we will use constraints defined above and calculated derivatives:
+  if (sectorLeftColumn >= 3) {
+    sectorLeftColumn = 2;
+    dx = width - 1;
+  }
 
-  // dp/dx(x, y) = a[i][j] * i * x^(i - 1) * y^j for i in [0..3] for j in [0..3]
-  // dp/dy(x, y) = a[i][j] * x^i * j * y^(j - 1) for i in [0..3] for j in [0..3]
-  // dp/dxy(x, y) = a[i][j] * i * x^(i - 1) * j * y^(j - 1) for i in [0..3] for j in [0..3]
-
-  // + f(0, 0) = p(0, 0) = a[0][0] , as other summands are zero
-  // + f(0, h) = p(0, h) = a[0][j] * 1 * h^j for j in [0..3]
-  // + f(w, 0) = p(w, 0) = a[i][0] * w^i * 1 for i in [0..3]
-  // f(w, h) = p(w, h) = a[i][j] * w^i * h^j for i in [0..3] for j in [0..3]
-
-  // + dp/dx(0, 0) = a[1][0]
-  // + dp/dx(0, h) = a[1][j] * h^j for j in [0..3]
-  // + dp/dx(w, 0) = a[i][0] * i * w^(i - 1) for i in [1..3] , NOTE THE RANGE OF `i`!
-  // dp/dx(w, h) = a[i][j] * i * w^(i - 1) * h^j for i in [1..3] for j in [0..3]
-
-  // + dp/dy(0, 0) = a[0][1]
-  // + dp/dy(0, h) = a[0][j] * j * h ^ (j - 1) for j in [1..3]
-  // + dp/dy(w, 0) = a[i][1] * w ^ i for i in [0..3]
-  // dp/dy(w, h) = a[i][j] * w ^ i * j * h^(j - 1) for i in [0..3] for j in [1..3]
-
-  // + dp/dxdy(0, 0) = a[1][1]
-  // + dp/dxdy(0, h) = a[1][j] * j * h^(j - 1) for j in [1..3]
-  // + dp/dxy(w, 0) = a[i][1] * i * w^(i - 1) for i in [1..3]
-  // dp/dxy(w, h) = a[i][j] * i * w^(i - 1) * j * h^(j - 1) for i in [1..3] for j in [1..3]
-
-  // Now we have 16 linear equations with 16 unknown values, as everything but a[i][j] is already known
-  // This is the solution:
-  // a[0][0] = f(0, 0)
-  // a[1][0] = df/dx(0, 0)
-  // a[0][1] = df/dy(0, 0)
-  // a[1][1] = df/dxy(0, 0)
-
-  // a[0][2] = ( 3 * f(0, h) - 3 * a[0][0] - 2 * a[0][1] * h - h * df/dy(0, h) ) / (h^2)
-  // a[0][3] = ( h * df/dy(0, h) + a[0][1] * h - 2 * f(0, h) + 2 * a[0][0] ) / (h^3)
-  // a[2][0] = ( 3 * f(w, 0) - 3 * a[0][0] - 2 * a[1][0] * w - w * df/dx(w, 0) ) / (w^2)
-  // a[3][0] = ( w * df/dx(w, 0) + a[1][0] * w - 2 * f(w, 0) + 2 * a[0][0] ) / (w^3)
-
-  // a[1][2] = ( 3 * df/dx(0, h) - 3 * a[1][0] - 2 * h * a[1][1] - df/dxy(0, h) * h ) / (h^2)
-  // a[1][3] = ( h * df/dxy(0, h) + a[1][1] * h - 2 * df/dx(0, h) + 2 * a[1][0] ) / (h^3)
-  // a[2][1] = ( 3 * df/dy(w, 0) - 3 * a[0][1] - 2 * w * a[1][1] - df/dxy(w, 0) * w ) / (w^2)
-  // a[3][1] = ( w * df/dxy(w, 0) + a[1][1] * w - 2 * df/dy(w, 0) + 2 * a[0][1] ) / (w^3)
-
-  // a[2][2] = ?
-  // a[2][3] = ?
-  // a[3][2] = ?
-  // a[3][3] = ?
-  ALLEGRO_COLOR a[16];
   auto idx = [](int x, int y) { return x + y * 4; };
-  auto A = [&a, &idx](int x, int y) -> ALLEGRO_COLOR& { return a[idx(x, y)]; };
-  auto F = [&event, &idx, &sectorLeftColumn, &sectorTopRow](int x, int y) -> ALLEGRO_COLOR {
+  auto F = [&event, &idx, &sectorLeftColumn, &sectorTopRow](int x, int y) -> vec3 {
     const float* ptr = &(event.colors[idx(sectorLeftColumn + x, sectorTopRow + y) * 3]);
-    return al_map_rgb_f(ptr[0], ptr[1], ptr[2]);
+    return vec3(ptr[0], ptr[1], ptr[2]);
   };
-  const auto zeroDerivative = al_map_rgb(0, 0, 0);
+
+  const auto zeroDerivative = vec3(0, 0, 0);
   auto dFx = [&F, &sectorWidth, &sectorLeftColumn, &zeroDerivative](int x, int y) {
     return sectorLeftColumn == 1 ? (1.0f / float(sectorWidth)) * (F(x + 1, y) - F(x - 1, y)) : zeroDerivative;
   };
@@ -309,85 +256,57 @@ static ALLEGRO_COLOR bicubic(int x, int y, int width, int height, const Menu::Ev
   };
 
   float w = float(sectorWidth);
-  float w2 = w * w;
-  float w3 = w2 * w;
 
   float h = float(sectorHeight);
-  float h2 = h * h;
-  float h3 = h2 * h;
 
-  A(0, 0) = F(0, 0);
-  A(1, 0) = dFx(0, 0);
-  A(0, 1) = dFy(0, 0);
-  A(1, 1) = dFxy(0, 0);
+  float wikiInverseA[16 * 16] = {
+    1,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
+    0,  0,  0,  0,  1,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
+    -3,  3,  0,  0,  -2,  -1,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
+    2,  -2,  0,  0,  1,  1,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
+    0,  0,  0,  0,  0,  0,  0,  0,  1,  0,  0,  0,  0,  0,  0,  0,
+    0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  1,  0,  0,  0,
+    0,  0,  0,  0,  0,  0,  0,  0,  -3,  3,  0,  0,  -2,  -1,  0,  0,
+    0,  0,  0,  0,  0,  0,  0,  0,  2,  -2,  0,  0,  1,  1,  0,  0,
+    -3,  0,  3,  0,  0,  0,  0,  0,  -2,  0,  -1,  0,  0,  0,  0,  0,
+    0,  0,  0,  0,  -3,  0,  3,  0,  0,  0,  0,  0,  -2,  0,  -1,  0,
+    9,  -9,  -9,  9,  6,  3,  -6,  -3,  6,  -6,  3,  -3,  4,  2,  2,  1,
+    -6,  6,  6,  -6,  -3,  -3,  3,  3,  -4,  4,  -2,  2,  -2,  -2,  -1,  -1,
+    2,  0,  -2,  0,  0,  0,  0,  0,  1,  0,  1,  0,  0,  0,  0,  0,
+    0,  0,  0,  0,  2,  0,  -2,  0,  0,  0,  0,  0,  1,  0,  1,  0,
+    -6,  6,  6,  -6,  -4,  -2,  4,  2,  -3,  3,  -3,  3,  -2,  -1,  -2,  -1,
+    4,  -4,  -4,  4,  2,  2,  -2,  -2,  2,  -2,  2,  -2,  1,  1,  1,  1
+  };
 
-  A(0, 2) = ( 3 * F(0, 1) - 3 * A(0, 0) - 2 * A(0, 1) * h - h * dFy(0, 1) ) / h2;
-  A(0, 3) = ( h * dFy(0, 1) + A(0, 1) * h - 2 * F(0, 1) + 2 * A(0, 0) ) / h3;
-  A(2, 0) = ( 3 * F(1, 0) - 3 * A(0, 0) - 2 * A(1, 0) * w - w * dFx(1, 0) ) / w2;
-  A(3, 0) = ( w * dFx(1, 0) + A(1, 0) * w - 2 * F(1, 0) + 2 * A(0, 0) ) / w3;
+  vec3 wikiX[16] = {
+    F(0, 0), F(1, 0), F(0, 1), F(1, 1),
+    dFx(0, 0), dFx(1, 0), dFx(0, 1), dFx(1, 1),
+    dFy(0, 0), dFy(1, 0), dFy(0, 1), dFy(1, 1),
+    dFxy(0, 0), dFxy(1, 0), dFxy(0, 1), dFxy(1, 1)
+  };
 
-  A(1, 2) = ( 3 * dFx(0, 1) - 3 * A(1, 0) - 2 * h * A(1, 1) - dFxy(0, 1) * h ) / h2;
-  A(1, 3) = ( h * dFxy(0, 1) + A(1, 1) * h - 2 * dFx(0, 1) + 2 * A(1, 0) ) / h3;
-  A(2, 1) = ( 3 * dFy(1, 0) - 3 * A(0, 1) - 2 * w * A(1, 1) - dFxy(1, 0) * w ) / w2;
-  A(3, 1) = ( w * dFxy(1, 0) + A(1, 1) * w - 2 * dFy(1, 0) + 2 * A(0, 1) ) / w3;
+  vec3 wikiCoefs[16]{};
+  for (int i = 0; i < 16; ++i) {
+    wikiCoefs[i] = vec3{0.f,0.f,0.f};
+    for (int j = 0; j < 16; ++j) {
+      wikiCoefs[i] += wikiInverseA[16 * i + j] * wikiX[j]; 
+    }
+  }
 
-  ALLEGRO_COLOR C[4];
-  float ws[] = {1.0f, w, w2, w3};
-  float hs[] = {1.0f, h, h2, h3};
-  C[0] = F(1, 1);
+  vec3 wikiRes(0, 0, 0);
+
+  float ndx = float(dx) / w;
+  float xs[4] = { 1.f, ndx, ndx * ndx, ndx * ndx * ndx };
+
+  float ndy = float(dy) / h;
+  float ys[4] = { 1.f, ndy, ndy * ndy, ndy * ndy * ndy };
+
   for (int i = 0; i < 4; ++i) {
     for (int j = 0; j < 4; ++j) {
-      if (i >= 2 && j >= 2) {
-        continue;
-      }
-      C[0] -= A(i, j) * ws[i] * hs[j];
+      wikiRes += wikiCoefs[4 * j + i] * xs[i] * ys[j];
     }
   }
-
-  C[1] = dFx(1, 1);
-  for (int i = 1; i < 4; ++i) {
-    for (int j = 0; j < 4; ++j) {
-      if (i >= 2 && j >= 2) {
-        continue;
-      }
-      C[1] -= float(i) * A(i, j) * ws[i - 1] * hs[j];
-    }
-  }
-
-  C[2] = dFy(1, 1);
-  for (int i = 0; i < 4; ++i) {
-    for (int j = 1; j < 4; ++j) {
-      if (i >= 2 && j >= 2) {
-        continue;
-      }
-      C[2] -= float(j) * A(i, j) * ws[i] * hs[j - 1];
-    }
-  }
-
-  C[3] = dFxy(1, 1);
-  for (int i = 1; i < 4; ++i) {
-    for (int j = 1; j < 4; ++j) {
-      if (i >= 2 && j >= 2) {
-        continue;
-      }
-      C[3] -= float(i) * float(j) * A(i, j) * ws[i - 1] * hs[j - 1];
-    }
-  }
-
-  A(3, 2) = ( 2 * C[2] * h + 3 * C[1] * w - C[3] * w * h - 6 * C[0] ) / ( 6 * w3 * h3 );
-  A(3, 3) = ( C[1] * w - 2 * C[0] - A(3, 2) * w3 * h2 ) / (w3 * h3);
-  A(2, 3) = ( 4 * A(3, 2) * w3 * h2 + C[3] * w * h + 6 * C[0] - 5 * C[1] * w ) / ( 2 * w2 * h3);
-  A(2, 2) = ( 3 * C[1] * w - C[3] * w * h - 4 * A(3, 2) * w3 * h2 ) / (2 * w2 * h2);
-
-  ALLEGRO_COLOR result = al_map_rgb(0, 0, 0);
-  float dxs[4] = { 1.0f, dx, dx * dx, dx * dx * dx };
-  float dys[4] = { 1.0f, dy, dy * dy, dy * dy * dy };
-  for (int i = 0; i < 4; ++i) {
-    for (int j = 0; j < 4; ++j) {
-      result += A(i, j) * dxs[i] * dys[j];
-    }
-  }
-  return result;
+  return al_map_rgb_f(wikiRes.x, wikiRes.y, wikiRes.z);
 }
 
 static void generate_interpolated_texture(flecs::world& ecs, const Menu::EventGenerateInterpolatedTexture& event) {
@@ -408,7 +327,7 @@ static void generate_interpolated_texture(flecs::world& ecs, const Menu::EventGe
   } else if (event.algorithm == Menu::EventGenerateInterpolatedTexture::Algorithm::nearest_neighboor) {
     interpolator = nearest_neighboor;
   } else if (event.algorithm == Menu::EventGenerateInterpolatedTexture::Algorithm::bicubic) {
-    interpolator = bicubic;
+    interpolator = bicubic_wiki;
   }
 
   for (int x = 0; x < width; ++x) {
