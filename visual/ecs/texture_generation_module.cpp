@@ -4,6 +4,7 @@
 #include <render/noise_texture.hpp>
 #include <math.hpp>
 #include <perlin.hpp>
+#include <interpolation.hpp>
 #include <random>
 #include <ctime>
 
@@ -143,24 +144,14 @@ static ALLEGRO_COLOR bilinear_interpolation(int x, int y, int width, int height,
   int botLeft = index(left, bot);
   int botRight = index(right, bot);
 
-  float topInterp[3] = {
-    std::lerp(event.colors[topLeft], event.colors[topRight], kx),
-    std::lerp(event.colors[topLeft + 1], event.colors[topRight + 1], kx),
-    std::lerp(event.colors[topLeft + 2], event.colors[topRight + 2], kx),
-  };
+  vec3 topLeftV{ event.colors[topLeft], event.colors[topLeft + 1], event.colors[topLeft + 2] };
+  vec3 topRightV{ event.colors[topRight], event.colors[topRight + 1], event.colors[topRight + 2] };
+  vec3 botLeftV{ event.colors[botLeft], event.colors[botLeft + 1], event.colors[botLeft + 2] };
+  vec3 botRightV{ event.colors[botRight], event.colors[botRight + 1], event.colors[botRight + 2] };
 
-  float botInterp[3] = {
-    std::lerp(event.colors[botLeft], event.colors[botRight], kx),
-    std::lerp(event.colors[botLeft + 1], event.colors[botRight + 1], kx),
-    std::lerp(event.colors[botLeft + 2], event.colors[botRight + 2], kx),
-  };
+  vec3 result = interpolation::bilinear(topLeftV, topRightV, botLeftV, botRightV, kx, ky);
 
-  float result[3] = {
-    std::lerp(topInterp[0], botInterp[0], ky),
-    std::lerp(topInterp[1], botInterp[1], ky),
-    std::lerp(topInterp[2], botInterp[2], ky)
-  };
-  return al_map_rgb_f(result[0], result[1], result[2]);
+  return al_map_rgb_f(result.x, result.y, result.z);
 }
 
 static ALLEGRO_COLOR nearest_neighboor(int x, int y, int width, int height, const Menu::EventGenerateInterpolatedTexture& event) {
@@ -177,11 +168,7 @@ static ALLEGRO_COLOR nearest_neighboor(int x, int y, int width, int height, cons
   return al_map_rgb_f(neighboor[0], neighboor[1], neighboor[2]);
 }
 
-struct BicubicCoefficients{
-  vec3 a[16];
-};
-
-static BicubicCoefficients calc_bicubic_coefficients(int left_column, int top_row, int sector_width, int sector_height, const Menu::EventGenerateInterpolatedTexture& event) {
+static interpolation::BicubicCoefficients<vec3> calc_bicubic_coefficients(int left_column, int top_row, int sector_width, int sector_height, const Menu::EventGenerateInterpolatedTexture& event) {
   auto idx = [](int x, int y) { return x + y * 4; };
   auto F = [&event, &idx, &left_column, &top_row](int x, int y) -> vec3 {
     const float* ptr = &(event.colors[idx(left_column + x, top_row + y) * 3]);
@@ -201,43 +188,13 @@ static BicubicCoefficients calc_bicubic_coefficients(int left_column, int top_ro
       : zeroDerivative;
   };
 
-  float wikiInverseA[16 * 16] = {
-    1,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-    0,  0,  0,  0,  1,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-    -3,  3,  0,  0,  -2,  -1,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-    2,  -2,  0,  0,  1,  1,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-    0,  0,  0,  0,  0,  0,  0,  0,  1,  0,  0,  0,  0,  0,  0,  0,
-    0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  1,  0,  0,  0,
-    0,  0,  0,  0,  0,  0,  0,  0,  -3,  3,  0,  0,  -2,  -1,  0,  0,
-    0,  0,  0,  0,  0,  0,  0,  0,  2,  -2,  0,  0,  1,  1,  0,  0,
-    -3,  0,  3,  0,  0,  0,  0,  0,  -2,  0,  -1,  0,  0,  0,  0,  0,
-    0,  0,  0,  0,  -3,  0,  3,  0,  0,  0,  0,  0,  -2,  0,  -1,  0,
-    9,  -9,  -9,  9,  6,  3,  -6,  -3,  6,  -6,  3,  -3,  4,  2,  2,  1,
-    -6,  6,  6,  -6,  -3,  -3,  3,  3,  -4,  4,  -2,  2,  -2,  -2,  -1,  -1,
-    2,  0,  -2,  0,  0,  0,  0,  0,  1,  0,  1,  0,  0,  0,  0,  0,
-    0,  0,  0,  0,  2,  0,  -2,  0,  0,  0,  0,  0,  1,  0,  1,  0,
-    -6,  6,  6,  -6,  -4,  -2,  4,  2,  -3,  3,  -3,  3,  -2,  -1,  -2,  -1,
-    4,  -4,  -4,  4,  2,  2,  -2,  -2,  2,  -2,  2,  -2,  1,  1,  1,  1
-  };
-
-  vec3 wikiX[16] = {
-    F(0, 0), F(1, 0), F(0, 1), F(1, 1),
-    dFx(0, 0), dFx(1, 0), dFx(0, 1), dFx(1, 1),
-    dFy(0, 0), dFy(1, 0), dFy(0, 1), dFy(1, 1),
-    dFxy(0, 0), dFxy(1, 0), dFxy(0, 1), dFxy(1, 1)
-  };
-
-  BicubicCoefficients wikiCoefs{};
-  for (int i = 0; i < 16; ++i) {
-    wikiCoefs.a[i] = vec3{0.f,0.f,0.f};
-    for (int j = 0; j < 16; ++j) {
-      wikiCoefs.a[i] += wikiInverseA[16 * i + j] * wikiX[j];
-    }
-  }
-  return wikiCoefs;
+  return interpolation::calc_bicubic_coefficients(F(0, 0), F(1, 0), F(0, 1), F(1, 1),
+                                                  dFx(0, 0), dFx(1, 0), dFx(0, 1), dFx(1, 1),
+                                                  dFy(0, 0), dFy(1, 0), dFy(0, 1), dFy(1, 1),
+                                                  dFxy(0, 0), dFxy(1, 0), dFxy(0, 1), dFxy(1, 1));
 }
 
-static BicubicCoefficients s_bicubic_coefs[9];
+static interpolation::BicubicCoefficients<vec3> s_bicubic_coefs[9];
 
 static ALLEGRO_COLOR bicubic_wiki(int x, int y, int width, int height, const Menu::EventGenerateInterpolatedTexture&) {
   auto [sectorWidth, sectorHeight, sectorLeftColumn, sectorTopRow, dx, dy] = calc_sector_coords(x, y, width, height);
@@ -254,22 +211,14 @@ static ALLEGRO_COLOR bicubic_wiki(int x, int y, int width, int height, const Men
 
   const auto& coefs = s_bicubic_coefs[sectorLeftColumn + sectorTopRow * 3];
 
-  vec3 wikiRes(0, 0, 0);
-
   const float w = float(sectorWidth);
   const float h = float(sectorHeight);
 
   const float ndx = float(dx) / w;
-  const float xs[4] = { 1.f, ndx, ndx * ndx, ndx * ndx * ndx };
-
   const float ndy = float(dy) / h;
-  const float ys[4] = { 1.f, ndy, ndy * ndy, ndy * ndy * ndy };
 
-  for (int i = 0; i < 4; ++i) {
-    for (int j = 0; j < 4; ++j) {
-      wikiRes += coefs.a[4 * j + i] * xs[i] * ys[j];
-    }
-  }
+  vec3 wikiRes = interpolation::bicubic(ndx, ndy, coefs);
+
   return al_map_rgb_f(wikiRes.x, wikiRes.y, wikiRes.z);
 }
 
