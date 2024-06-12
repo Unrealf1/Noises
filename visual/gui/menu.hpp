@@ -23,6 +23,7 @@ public:
     float offset[2] = {0.0f, 0.0f};
     bool normalize_offsets = false;
     PerlinNoiseParameters::InterpolationAlgorithm interpolation_algorithm = PerlinNoiseParameters::InterpolationAlgorithm::bilinear;
+    int random_seed = 0;
   };
 
   struct EventGenerateInterpolatedTexture {

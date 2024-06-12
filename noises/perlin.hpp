@@ -17,7 +17,7 @@ struct PerlinNoiseParameters {
 
   bool normalize_offsets = false;
   enum class InterpolationAlgorithm {
-    bilinear, bicubic, nearest_neighboor
+    bilinear, bicubic, bicubic_zero, nearest_neighboor
   } interpolation_algorithm = InterpolationAlgorithm::bilinear;
 };
 
@@ -43,9 +43,5 @@ public:
 private:
   PerlinNoiseParameters m_parameters;
   std::vector<float> m_grid_data;
-  /*std::mdspan<float,
-              std::dynamic_extent,
-              std::dynamic_extent,
-              2> m_grid;*/
 };
 

@@ -65,9 +65,10 @@ void Menu::draw(flecs::world& ecs) {
     ImGui::SliderInt2("Vector grid size", m_perlin_noise_params.grid_size, 1, 10000);
     ImGui::SliderFloat2("Grid step", m_perlin_noise_params.grid_step, 0.1f, 10000.0f);
     ImGui::Checkbox("Normalize offset vectors", &m_perlin_noise_params.normalize_offsets);
-    const char* algorithms[] = {"bilinear", "bicubic", "nearest neighboor"};
+    const char* algorithms[] = {"bilinear", "bicubic (derivative from grid)", "bicubic (zero derivative)", "nearest neighboor"};
     int algo = int(m_perlin_noise_params.interpolation_algorithm);
     ImGui::ListBox("Interpolation", &algo, algorithms, sizeof(algorithms) / sizeof(const char*), 3);
+    ImGui::SliderInt("Random seed", &m_perlin_noise_params.random_seed, 0, 10000);
     m_perlin_noise_params.interpolation_algorithm = PerlinNoiseParameters::InterpolationAlgorithm(algo);
 
   } else if (m_noise_idx == int(MenuNoisesIndices::interpolation)) {
@@ -93,8 +94,6 @@ void Menu::draw(flecs::world& ecs) {
     for (int row = 0; row <= 3; ++row) {
       for (int column = 0; column <= 3; ++column) {
         int index = (row * 4 + column) * 3;
-        /*char labelBuffer[10];
-        std::format_to(labelBuffer, "Color{}\0", row * 4 + column);*/
         ImGui::ColorEdit3(labels[index / 3], &m_interpolated_texture_params.colors[index], ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoLabel);
         if (column != 3) {
           ImGui::SameLine();

@@ -18,8 +18,15 @@ static void generate_perlin_noise_texture(flecs::world& ecs, const Menu::EventGe
   });
   NoiseTexture texture(event.size[0], event.size[1]);
 
-  std::random_device dev{};
-  std::default_random_engine eng(dev());
+  auto seed = [&]{
+    if (event.random_seed <= 0) {
+      std::random_device dev{};
+      return dev();
+    } else {
+      return static_cast<unsigned int>(event.random_seed);
+    }
+  }();
+  std::default_random_engine eng(seed);
 
   auto startTime = std::clock();
 
