@@ -2,7 +2,7 @@
   - White noise
   * Perlin noise
       + bicubic interpolation
-      - make generic interpolation implementations and use one in perlin
+      + make generic interpolation implementations and use one in perlin
   - Simplex noise
   - Other colored noises, i.e. brown
 
