@@ -7,6 +7,7 @@
 #include <interpolation.hpp>
 #include <random>
 #include <ctime>
+#include <utility>
 
 
 static flecs::entity s_menu_event_receiver;
@@ -253,6 +254,8 @@ static void generate_interpolated_texture(flecs::world& ecs, const Menu::EventGe
       }
     }
     interpolator = bicubic_wiki;
+  } else {
+    std::unreachable();
   }
 
   for (int x = 0; x < width; ++x) {
