@@ -3,6 +3,7 @@
 #include <imgui_inc.hpp>
 #include <render/noise_texture.hpp>
 #include <format>
+#include <ImGuiFileDialog.h>
 
 #include <spdlog/spdlog.h>
 
@@ -129,6 +130,28 @@ void Menu::draw(flecs::world& ecs) {
       m_current_texture_size[0] = m_interpolated_texture_params.size[0];
       m_current_texture_size[1] = m_interpolated_texture_params.size[1];
     }
+  }
+
+  ImGui::SameLine();
+
+  const char* const fileDialogKey = "draw_save_dialog_key";
+  if (ImGui::Button("Save")) {
+    ImGuiFileDialog::Instance()->OpenDialog(fileDialogKey, "Choose file", ".png,.jpg,.webp", ".", 1, nullptr, ImGuiFileDialogFlags_Modal | ImGuiFileDialogFlags_ConfirmOverwrite);
+  }
+
+  if (ImGuiFileDialog::Instance()->Display(fileDialogKey)) {
+    if (ImGuiFileDialog::Instance()->IsOk()) {
+      spdlog::info("searching for the texture...");
+      ecs.each([&](NoiseTexture& texture){
+        spdlog::info("saving to \"{}\"", ImGuiFileDialog::Instance()->GetFilePathName());
+        bool didSave = al_save_bitmap(ImGuiFileDialog::Instance()->GetFilePathName().c_str(), texture.m_memory_bitmap.get_raw());
+        if (!didSave) {
+          spdlog::error("Failed to save texture.");
+        }
+      });
+    }
+
+    ImGuiFileDialog::Instance()->Close();
   }
 
   // TODO: show statistics? Like distribution of colors?
