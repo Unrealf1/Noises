@@ -9,15 +9,22 @@
 enum class MenuNoisesIndices { white, perlin, interpolation };
 static constexpr std::array s_noises {"white", "perlin", "interpolation"};
 
+#ifdef __EMSCRIPTEN__ // browser is much slower than native code
+// its nice to have default size be divided by 3, so interpolation example looks good by default
+    constexpr int s_default_texture_size = 150;
+#else
+    constexpr int s_default_texture_size = 501;
+#endif
+
 class Menu : public GuiMenuContents {
 public:
   struct EventGenerateWhiteNoiseTexture {
-    int size[2] = {500, 500};
+    int size[2] = {s_default_texture_size, s_default_texture_size};
     float black_prob = 0.5f;
   };
 
   struct EventGeneratePerlinNoiseTexture {
-    int size[2] = {500, 500};
+    int size[2] = {s_default_texture_size, s_default_texture_size};
     int grid_size[2] = {20, 20};
     float grid_step[2] = {25.0f, 25.0f};
     float offset[2] = {0.0f, 0.0f};
@@ -27,7 +34,7 @@ public:
   };
 
   struct EventGenerateInterpolatedTexture {
-    int size[2] = {501, 501};
+    int size[2] = {s_default_texture_size, s_default_texture_size};
     float colors[3 * 16] = {
       1, 0, 0,  1, 0, 0,  0, 0, 1,  0, 0, 1,
       1, 0, 0,  1, 1, 1,  0, 0, 1,  0, 0, 1,

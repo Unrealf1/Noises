@@ -1,6 +1,7 @@
 #include "texture_inspection_module.hpp"
 #include <ecs/display_module.hpp>
 #include <algorithm>
+#include <gui/menu.hpp>
 
 #include <spdlog/spdlog.h>
 
@@ -11,8 +12,16 @@ TextureInspectionModule::TextureInspectionModule(flecs::world& ecs) {
 
   s_inspection_state_query = ecs.query<InspectionState>();
 
+  InspectionState initialState{};
+  ecs.each([&initialState](const DisplayHolder& holder) {
+    auto w = al_get_display_width(holder.display);
+    auto h = al_get_display_height(holder.display);
+    initialState.x_offset = float(w - s_default_texture_size) / 2.0f;
+    initialState.y_offset = float(h - s_default_texture_size) / 2.0f;
+  });
+
   ecs.entity()
-    .emplace<InspectionState>();
+    .emplace<InspectionState>(initialState);
 
   get_input_event_receiver()
     .observe([](EventMouseButtonDown event){

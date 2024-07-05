@@ -8,6 +8,20 @@
 #include <spdlog/spdlog.h>
 #include <ecs/texture_inspection_module.hpp>
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#include <emscripten/html5.h>
+
+static bool s_emscripten_display_size_changed = false;
+
+static EM_BOOL on_web_display_size_changed(int event_type,const EmscriptenUiEvent *event, void *user_data)
+{
+  s_emscripten_display_size_changed = true;
+  spdlog::warn("Display size change is detected, but not yet supported");
+  return 0;
+}
+
+#endif
 
 static flecs::entity s_SystemEvents;
 static flecs::entity s_InputEventReceiver;
@@ -115,8 +129,29 @@ flecs::entity get_input_event_receiver() {
 
 DisplayModule::DisplayModule(flecs::world& ecs) {
   al_set_new_display_flags(ALLEGRO_RESIZABLE);
-  auto display = al_create_display(500, 500);
+
+#ifdef __EMSCRIPTEN__
+  double w;
+  double h;
+  emscripten_get_element_css_size("#canvas", &w, &h );
+  auto display = al_create_display(w, h);
+  spdlog::info("display size is {} {}", int(w), int(h));
+#else
+  ALLEGRO_MONITOR_INFO monitorInfo;
+  int w = 500;
+  int h = 500;
+  if (al_get_monitor_info(0, &monitorInfo)) {
+    w = int(float(monitorInfo.x2 - monitorInfo.x1) * 0.7f);
+    h = int(float(monitorInfo.y2 - monitorInfo.x1) * 0.7f);
+  }
+  auto display = al_create_display(w, h);
+#endif
+
   ImGui_ImplAllegro5_Init(display);
+
+#ifdef __EMSCRIPTEN__
+  emscripten_set_resize_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, 0, 0, on_web_display_size_changed);
+#endif
 
   s_inspection_state_query = ecs.query<InspectionState>();
   s_InputEventReceiver = ecs.entity()
