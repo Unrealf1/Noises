@@ -135,7 +135,6 @@ DisplayModule::DisplayModule(flecs::world& ecs) {
   double h;
   emscripten_get_element_css_size("#canvas", &w, &h );
   auto display = al_create_display(w, h);
-  spdlog::info("display size is {} {}", int(w), int(h));
 #else
   ALLEGRO_MONITOR_INFO monitorInfo;
   int w = 500;
