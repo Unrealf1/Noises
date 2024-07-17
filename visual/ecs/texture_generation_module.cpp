@@ -12,12 +12,52 @@
 
 static flecs::entity s_menu_event_receiver;
 
+struct PerlinNoiseGenerationContinuation {
+  flecs::entity m_texture;
+  std::clock_t m_time_spent;
+  std::default_random_engine m_random_state;
+  PerlinNoise m_noise;
+  int m_next_x;
+  int m_next_y;
+};
+
+static bool continue_perlin_noise_generation(PerlinNoiseGenerationContinuation& continuation, std::clock_t time_budget) {
+  NoiseTexture& texture = *(continuation.m_texture.get_mut<NoiseTexture>());
+  auto width = texture.width();
+  auto height = texture.height();
+
+  auto startTime = std::clock();
+  int x = continuation.m_next_x;
+  int y = continuation.m_next_y;
+  for (; x < width; ++x) {
+    for (; y < height; ++y) {
+      float value = continuation.m_noise(float(x), float(y));
+      auto brightness = uint8_t(255.0f * value);
+      texture.set(x, y, al_map_rgb(brightness, brightness, brightness));
+    }
+    y = 0;
+    auto curTimeSpent = std::clock() - startTime;
+
+    if (curTimeSpent >= time_budget) {
+      continuation.m_time_spent += curTimeSpent;
+      continuation.m_next_x = x;
+      continuation.m_next_y = y;
+      return false;
+    }
+  }
+  continuation.m_time_spent += std::clock() - startTime;
+  return true;
+}
 
 static void generate_perlin_noise_texture(flecs::world& ecs, const Menu::EventGeneratePerlinNoiseTexture& event) {
   ecs.each([](flecs::entity entity, const NoiseTexture&){
     entity.destruct();
   });
-  NoiseTexture texture(event.size[0], event.size[1]);
+  ecs.each([](flecs::entity entity, const PerlinNoiseGenerationContinuation&){
+    entity.destruct();
+  });
+
+  auto textureEntity = ecs.entity().emplace<NoiseTexture>(event.size[0], event.size[1]);
 
   auto seed = [&]{
     if (event.random_seed <= 0) {
@@ -31,38 +71,28 @@ static void generate_perlin_noise_texture(flecs::world& ecs, const Menu::EventGe
 
   auto startTime = std::clock();
 
-  PerlinNoise noise({
-    .grid_size_x = event.grid_size[0],
-    .grid_size_y = event.grid_size[1],
+  PerlinNoiseGenerationContinuation continuation{
+    .m_texture = textureEntity,
+    .m_time_spent = 0,
+    .m_random_state = eng,
+    .m_noise = PerlinNoise({
+      .grid_size_x = event.grid_size[0],
+      .grid_size_y = event.grid_size[1],
 
-    .grid_step_x = event.grid_step[0],
-    .grid_step_y = event.grid_step[1],
+      .grid_step_x = event.grid_step[0],
+      .grid_step_y = event.grid_step[1],
 
-    .offset_x = event.offset[0],
-    .offset_y = event.offset[1],
+      .offset_x = event.offset[0],
+      .offset_y = event.offset[1],
 
-    .normalize_offsets = event.normalize_offsets,
-    .interpolation_algorithm = event.interpolation_algorithm
-  }, eng);
-
-  auto width = texture.width();
-  auto height = texture.height();
-  for (int x = 0; x < width; ++x) {
-    for (int y = 0; y < height; ++y) {
-      float value = noise(float(x), float(y));
-      auto brightness = uint8_t(255.0f * value);
-      texture.set(x, y, al_map_rgb(brightness, brightness, brightness));
-    }
-  }
-  auto timeTaken = std::clock() - startTime;
-  ecs.each([&ecs, &timeTaken](flecs::entity entity, Menu::EventReceiver){
-    ecs.event<Menu::EventGenerationFinished>()
-      .ctx(Menu::EventGenerationFinished{.secondsTaken = double(timeTaken) / double(CLOCKS_PER_SEC)})
-      .entity(entity)
-      .emit();
-  });
-
-  ecs.entity().emplace<NoiseTexture>(std::move(texture));
+      .normalize_offsets = event.normalize_offsets,
+      .interpolation_algorithm = event.interpolation_algorithm
+    }, eng),
+    .m_next_x = 0,
+    .m_next_y = 0
+  };
+  continuation.m_time_spent = std::clock() - startTime;
+  ecs.entity().emplace<PerlinNoiseGenerationContinuation>(std::move(continuation));
 }
 
 static void generate_white_noise_texture(flecs::world& ecs, const Menu::EventGenerateWhiteNoiseTexture& event) {
@@ -294,6 +324,24 @@ TextureGenerationModule::TextureGenerationModule(flecs::world& ecs) {
   m_menu_event_receiver
     .observe([&ecs](const Menu::EventGenerateInterpolatedTexture& event) {
       generate_interpolated_texture(ecs, event);    
+    });
+
+  ecs.system<PerlinNoiseGenerationContinuation>("Perlin noise generation")
+    .kind(flecs::OnUpdate)
+    .each([](const flecs::iter& it, size_t entity_index, PerlinNoiseGenerationContinuation& continuation) {
+      auto ecs = it.world();
+      const int budgetMilliseconds = 20;
+      const auto allowedTime = CLOCKS_PER_SEC * budgetMilliseconds / 1000;
+      bool didFinish = continue_perlin_noise_generation(continuation, allowedTime);
+      if (didFinish) {
+        ecs.each([&ecs, &continuation](flecs::entity entity, Menu::EventReceiver){
+          ecs.event<Menu::EventGenerationFinished>()
+            .ctx(Menu::EventGenerationFinished{.secondsTaken = double(continuation.m_time_spent) / double(CLOCKS_PER_SEC)})
+            .entity(entity)
+            .emit();
+        });
+        it.entity(entity_index).destruct();
+      }
     });
 }
 
