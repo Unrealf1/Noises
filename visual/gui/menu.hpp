@@ -6,8 +6,8 @@
 #include <chrono>
 #include <perlin.hpp>
 
-enum class MenuNoisesIndices { white, perlin, interpolation };
-static constexpr std::array s_noises {"white", "perlin", "interpolation"};
+enum class MenuNoisesIndices { perlin, interpolation, white };
+static constexpr std::array s_noises {"perlin", "interpolation", "white"};
 
 #ifdef __EMSCRIPTEN__ // browser is much slower than native code
 // its nice to have default size be divided by 3, so interpolation example looks good by default
@@ -29,7 +29,7 @@ public:
     float grid_step[2] = {25.0f, 25.0f};
     float offset[2] = {0.0f, 0.0f};
     bool normalize_offsets = false;
-    PerlinNoiseParameters::InterpolationAlgorithm interpolation_algorithm = PerlinNoiseParameters::InterpolationAlgorithm::bilinear;
+    PerlinNoiseParameters::InterpolationAlgorithm interpolation_algorithm = PerlinNoiseParameters::InterpolationAlgorithm::bicubic;
     int random_seed = 0;
   };
 
@@ -43,7 +43,7 @@ public:
     };
     enum class Algorithm {
       bilinear, bicubic, nearest_neighboor
-    } algorithm = Algorithm::nearest_neighboor;
+    } algorithm = Algorithm::bicubic;
   };
 
   struct EventReceiver{};
