@@ -1,6 +1,7 @@
 #pragma once
 
 #include <allegro_util.hpp>
+#include <ecs/texture_inspection_module.hpp>
 
 
 struct NoiseTexture {
@@ -12,7 +13,7 @@ struct NoiseTexture {
   int width();
   int height();
 
-  void draw(ALLEGRO_DISPLAY*);
+  void draw(ALLEGRO_DISPLAY*, const InspectionState&);
 
   void prepare_for_update();
   void prepare_for_draw();
@@ -21,5 +22,5 @@ struct NoiseTexture {
   Bitmap m_memory_bitmap;
 
   ALLEGRO_LOCKED_REGION* m_locked_memory_bitmap;
-  bool m_was_modified_during_update = false;
+  bool m_was_modified_during_update = true; // to update gpu state on creation
 };

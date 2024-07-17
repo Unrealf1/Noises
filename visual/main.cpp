@@ -1,26 +1,29 @@
 #include <app/stop.hpp>
 #include <app/init.hpp>
-#include <flecs.h>
+#include <flecs_incl.hpp>
 
-#include <ecs/render_module.hpp>
-#include <ecs/display_module.hpp>
-#include <ecs/gui_module.hpp>
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+static flecs::world* g_ecs;
+#endif
 
-
-void import_modules(flecs::world& ecs) {
-  ecs.import<RenderModule>();
-  ecs.import<DisplayModule>();
-  ecs.import<GuiModule>();
-}
 
 int main() {
   flecs::world ecs;
-  import_modules(ecs);
-
   app::init(ecs);
 
+#ifdef __EMSCRIPTEN__
+  g_ecs = &ecs;
+  emscripten_set_main_loop([]{
+    if (app::should_stop()) {
+      emscripten_cancel_main_loop();
+    }
+    g_ecs->progress();
+  }, 0, 1);
+#else
   while (!app::should_stop()) {
     ecs.progress();
   }
+#endif
 }
 

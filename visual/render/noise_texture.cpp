@@ -1,6 +1,5 @@
 #include "noise_texture.hpp"
 
-#include <spdlog/spdlog.h>
 
 NoiseTexture::NoiseTexture(int width, int height)
   : m_draw_bitmap(width, height)
@@ -34,7 +33,6 @@ ALLEGRO_COLOR NoiseTexture::get(int x, int y) {
 
 void NoiseTexture::prepare_for_update() {
   m_locked_memory_bitmap = al_lock_bitmap(m_memory_bitmap.get_raw(), ALLEGRO_PIXEL_FORMAT_ANY, ALLEGRO_LOCK_READWRITE);
-  m_was_modified_during_update = false;
 }
 
 void NoiseTexture::prepare_for_draw() {
@@ -42,7 +40,7 @@ void NoiseTexture::prepare_for_draw() {
   if (m_was_modified_during_update) {
     auto override = TargetBitmapOverride(m_draw_bitmap.get_raw());
     al_draw_bitmap(m_memory_bitmap.get_raw(), 0, 0, 0);
-    spdlog::info("updating draw bitmap");
+    m_was_modified_during_update = false;
   }
 }
 
@@ -54,11 +52,27 @@ int NoiseTexture::height() {
   return m_memory_bitmap.height();
 }
 
-void NoiseTexture::draw(ALLEGRO_DISPLAY* display) {
+void NoiseTexture::draw(ALLEGRO_DISPLAY* display, const InspectionState& inspectionState) {
   auto displayBitmap = al_get_backbuffer(display);
   auto override = TargetBitmapOverride(displayBitmap);
-  //al_draw_bitmap(m_draw_bitmap.get_raw(), 0, 0, 0); // TODO: draw scaled
+
+  auto texWidth = float(al_get_bitmap_width(m_draw_bitmap.get_raw()));
+  auto texHeight = float(al_get_bitmap_height(m_draw_bitmap.get_raw()));
+
+  auto zoomTexWidth = texWidth * inspectionState.zoom;
+  auto zoomTexHeight = texHeight * inspectionState.zoom;
+
+  // no zoomed center - zoomed center
+  auto zoomToCenterCompensationX = (texWidth - zoomTexWidth) / 2.0f;
+  auto zoomToCenterCompensationY = (texHeight - zoomTexHeight) / 2.0f;
+
+  auto zoomOffsetX = inspectionState.x_offset + zoomToCenterCompensationX;
+  auto zoomOffsetY = inspectionState.y_offset + zoomToCenterCompensationY;
+
   al_draw_scaled_bitmap(m_draw_bitmap.get_raw(),
-    0.0f, 0.0f, al_get_bitmap_width(m_draw_bitmap.get_raw()), al_get_bitmap_height(m_draw_bitmap.get_raw()),
-    0.0f, 0.0f, al_get_bitmap_width(displayBitmap), al_get_bitmap_height(displayBitmap), 0);
+    0.0f, 0.0f,
+    texWidth, texHeight,
+    zoomOffsetX, zoomOffsetY,
+    zoomTexWidth, zoomTexHeight, 0);
 }
+
