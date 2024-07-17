@@ -11,7 +11,7 @@ static constexpr std::array s_noises {"perlin", "interpolation", "white"};
 
 #ifdef __EMSCRIPTEN__ // browser is much slower than native code
 // its nice to have default size be divided by 3, so interpolation example looks good by default
-    constexpr int s_default_texture_size = 150;
+    constexpr int s_default_texture_size = 120;
 #else
     constexpr int s_default_texture_size = 501;
 #endif
