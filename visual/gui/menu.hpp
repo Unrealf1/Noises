@@ -25,8 +25,15 @@ public:
 
   struct EventGeneratePerlinNoiseTexture {
     int size[2] = {s_default_texture_size, s_default_texture_size};
+
+#ifdef __EMSCRIPTEN__ // browser is much slower than native code
+    int grid_size[2] = {10, 10};
+    float grid_step[2] = {12.0f, 12.0f};
+#else
     int grid_size[2] = {20, 20};
     float grid_step[2] = {25.0f, 25.0f};
+#endif
+
     float offset[2] = {0.0f, 0.0f};
     bool normalize_offsets = false;
     PerlinNoiseParameters::InterpolationAlgorithm interpolation_algorithm = PerlinNoiseParameters::InterpolationAlgorithm::bicubic;
