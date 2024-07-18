@@ -13,21 +13,19 @@ include(cmake/CPM.cmake)
 if (WEB_BUILD)
     include("${WEB_BUILD}/cmake/Modules/TestBigEndian.cmake")
     add_compile_definitions("__EMSCRIPTEN__")
-    set(COMMON_WEB_BUILD_FLAGS "--use-port=sdl2 --use-port=sdl2_image:formats=bmp,png,xpm,jpg")
+    set(COMMON_WEB_BUILD_FLAGS "-msimd128 --use-port=sdl2 --use-port=sdl2_image:formats=bmp,png,xpm,jpg")
     set(WEB_LINKER_FLAGS "-sASSERTIONS -sALLOW_MEMORY_GROWTH -sTOTAL_STACK=5242880 -sFULL_ES2")
 
     SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${COMMON_WEB_BUILD_FLAGS}")
     SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${COMMON_WEB_BUILD_FLAGS}")
     SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${WEB_LINKER_FLAGS}")
     SET(ALLEGRO_SDL_OPTION "ON")
-    SET(ALLEGRO_SSE_OPTION "OFF")
 
     file(GLOB HTML "${CMAKE_CURRENT_SOURCE_DIR}/html/*")
     file(COPY ${HTML} DESTINATION ${CMAKE_BINARY_DIR}/bin/)
     set (SDL2_INCLUDE_DIR ${SDL2_SOURCE_DIR}/include)
 else()
     SET(ALLEGRO_SDL_OPTION "OFF")
-    SET(ALLEGRO_SSE_OPTION "ON")
 endif()
 
 SET(ALLEGRO_SHARED_OPTION "OFF")
@@ -75,7 +73,7 @@ CPMAddPackage(
   "WANT_NATIVE_DIALOG OFF"
   "WANT_AUDIO OFF"
   "ALLEGRO_SDL ${ALLEGRO_SDL_OPTION}"
-  "WANT_ALLOW_SSE ${ALLEGRO_SSE_OPTION}"
+  "WANT_ALLOW_SSE ON"
   "SHARED ${ALLEGRO_SHARED_OPTION}"
 )
 
