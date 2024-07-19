@@ -3,9 +3,11 @@
 #include <imgui_inc.hpp>
 #include <render/noise_texture.hpp>
 #include <format>
+#include <log.hpp>
+#ifndef __EMSCRIPTEN__
 #include <ImGuiFileDialog.h>
+#endif
 
-#include <spdlog/spdlog.h>
 
 
 Menu::Menu(flecs::world& ecs, flecs::entity menu_eid) {
@@ -20,6 +22,7 @@ Menu::Menu(flecs::world& ecs, flecs::entity menu_eid) {
   m_event_receiver
     .observe([&ecs, this](const Menu::EventGenerationFinished& event){
       m_last_generation_time_seconds = event.secondsTaken;
+      m_last_generation_real_time = event.realDuration;
     });
 }
 
@@ -49,7 +52,17 @@ void Menu::draw(flecs::world& ecs) {
         std::pair("ms", m_last_generation_time_seconds * 1e3) : 
         std::pair("us", m_last_generation_time_seconds * 1e6);
     }();
-    ImGui::Text("Generated in %.1f %s", timeValue, timeName);
+    ImGui::Text("Generated in %.1f %s CPU time", timeValue, timeName);
+    if (m_last_generation_real_time.count() > 0) {
+      auto s = std::chrono::duration_cast<std::chrono::seconds>(m_last_generation_real_time);
+      auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(m_last_generation_real_time);
+      auto us = std::chrono::duration_cast<std::chrono::microseconds>(m_last_generation_real_time);
+      auto [value, name] = ms.count() == 0 ? std::pair{float(us.count()), "us"}
+                           : s.count() == 0 ? std::pair{float(us.count()) / 1000.0f, "ms"}
+                           : std::pair{float(ms.count()) / 1000.0f, "s"};
+      ImGui::SameLine();
+      ImGui::Text("%.1f %s real time", value, name);
+    }
   });
   
   ImGui::Separator();
@@ -132,8 +145,8 @@ void Menu::draw(flecs::world& ecs) {
     }
   }
 
+#ifndef __EMSCRIPTEN__
   ImGui::SameLine();
-
   const char* const fileDialogKey = "draw_save_dialog_key";
   if (ImGui::Button("Save")) {
     ImGuiFileDialog::Instance()->OpenDialog(fileDialogKey, "Choose file", ".png,.jpg,.webp", ".", 1, nullptr, ImGuiFileDialogFlags_Modal | ImGuiFileDialogFlags_ConfirmOverwrite);
@@ -141,18 +154,18 @@ void Menu::draw(flecs::world& ecs) {
 
   if (ImGuiFileDialog::Instance()->Display(fileDialogKey)) {
     if (ImGuiFileDialog::Instance()->IsOk()) {
-      spdlog::info("searching for the texture...");
       ecs.each([&](NoiseTexture& texture){
-        spdlog::info("saving to \"{}\"", ImGuiFileDialog::Instance()->GetFilePathName());
-        bool didSave = al_save_bitmap(ImGuiFileDialog::Instance()->GetFilePathName().c_str(), texture.m_memory_bitmap.get_raw());
+        info("saving to \"{}\"", ImGuiFileDialog::Instance()->GetFilePathName());
+        bool didSave = al_save_bitmap(ImGuiFileDialog::Instance()->GetFilePathName().c_str(), texture.m_draw_bitmap.get_raw());
         if (!didSave) {
-          spdlog::error("Failed to save texture.");
+          error("Failed to save texture.");
         }
       });
     }
 
     ImGuiFileDialog::Instance()->Close();
   }
+#endif
 
   // TODO: show statistics? Like distribution of colors?
 }

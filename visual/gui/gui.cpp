@@ -1,6 +1,5 @@
 #include "gui.hpp"
 #include <imgui_inc.hpp>
-#include <spdlog/spdlog.h>
 
 
 void GuiMenuContents::draw(flecs::world&) { }

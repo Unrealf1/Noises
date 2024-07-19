@@ -105,3 +105,20 @@ private:
     std::unordered_map<const ALLEGRO_EVENT_SOURCE*, std::vector<Reaction>> m_reactions;
 };
 
+struct TargetBitmapOverride{
+  TargetBitmapOverride(ALLEGRO_BITMAP* new_target) {
+    m_old_target = al_get_target_bitmap();
+    if (m_old_target != new_target) {
+      al_set_target_bitmap(new_target);
+    }
+  }
+
+  ~TargetBitmapOverride() {
+    al_set_target_bitmap(m_old_target);
+  }
+  ALLEGRO_BITMAP* m_old_target;
+
+  TargetBitmapOverride(const TargetBitmapOverride&) = delete;
+  // Can be implemented, deleted for now to avoid confusion
+  TargetBitmapOverride(TargetBitmapOverride&&) = delete;
+};

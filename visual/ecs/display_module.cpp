@@ -5,7 +5,7 @@
 #include <app/stop.hpp>
 #include <imgui_inc.hpp>
 
-#include <spdlog/spdlog.h>
+#include <log.hpp>
 #include <ecs/texture_inspection_module.hpp>
 
 #ifdef __EMSCRIPTEN__
@@ -14,10 +14,10 @@
 
 static bool s_emscripten_display_size_changed = false;
 
-static EM_BOOL on_web_display_size_changed(int event_type,const EmscriptenUiEvent *event, void *user_data)
+static EM_BOOL on_web_display_size_changed(int /*event_type*/,const EmscriptenUiEvent */*event*/, void */* user_data */)
 {
   s_emscripten_display_size_changed = true;
-  spdlog::warn("Display size change is detected, but not yet supported");
+  warn("Display size change is detected, but not yet supported");
   return 0;
 }
 
@@ -134,7 +134,7 @@ DisplayModule::DisplayModule(flecs::world& ecs) {
   double w;
   double h;
   emscripten_get_element_css_size("#canvas", &w, &h );
-  auto display = al_create_display(w, h);
+  auto display = al_create_display(int(w), int(h));
 #else
   ALLEGRO_MONITOR_INFO monitorInfo;
   int w = 500;
