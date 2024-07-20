@@ -6,7 +6,7 @@
 #include <interpolation.hpp>
 
 
-float PerlinNoise::operator()(float x, float y) {
+float PerlinNoise::operator()(float x, float y) const {
   float centeredX = x - m_parameters.offset_x;
   float centeredY = y - m_parameters.offset_y;
 
@@ -54,10 +54,10 @@ float PerlinNoise::operator()(float x, float y) {
     botLeftOffset[1] /= botLeftOffsetLen;
   }
 
-  float* topLeftValue = &m_grid_data[size_t(left + top * m_parameters.grid_size_x) * 2];
-  float* topRightValue = &m_grid_data[size_t(right + top * m_parameters.grid_size_x) * 2];
-  float* botRightValue = &m_grid_data[size_t(right + bot * m_parameters.grid_size_x) * 2];
-  float* botLeftValue = &m_grid_data[size_t(left + bot * m_parameters.grid_size_x) * 2];
+  const float* topLeftValue = &m_grid_data[size_t(left + top * m_parameters.grid_size_x) * 2];
+  const float* topRightValue = &m_grid_data[size_t(right + top * m_parameters.grid_size_x) * 2];
+  const float* botRightValue = &m_grid_data[size_t(right + bot * m_parameters.grid_size_x) * 2];
+  const float* botLeftValue = &m_grid_data[size_t(left + bot * m_parameters.grid_size_x) * 2];
 
   float topLeftDot = topLeftOffset[0] * topLeftValue[0] + topLeftOffset[1] * topLeftValue[1];
   float topRightDot = topRightOffset[0] * topRightValue[0] + topRightOffset[1] * topRightValue[1];
