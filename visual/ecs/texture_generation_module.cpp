@@ -8,55 +8,158 @@
 #include <random>
 #include <ctime>
 #include <utility>
+#include <chrono>
+#include <vector>
+#include <thread>
+#include <atomic>
+#include <memory>
+#include <log.hpp>
+
+using namespace std::chrono_literals;
+using real_clock_t = std::chrono::steady_clock;
 
 
 static flecs::entity s_menu_event_receiver;
 
-struct PerlinNoiseGenerationContinuation {
+static constexpr int s_num_threads = 4;
+
+struct PerlinNoisePerThreadInfo {
   flecs::entity m_texture;
-  std::clock_t m_time_spent;
-  std::default_random_engine m_random_state;
-  PerlinNoise m_noise;
   int m_next_x;
-  int m_next_y;
+  int m_until_x;
+  const PerlinNoise* m_noise;
+  std::atomic<int>* m_threads_finished;
+  std::atomic<bool>* m_need_abort;
 };
 
-static bool continue_perlin_noise_generation(PerlinNoiseGenerationContinuation& continuation, std::clock_t time_budget) {
-  NoiseTexture& texture = *(continuation.m_texture.get_mut<NoiseTexture>());
-  auto width = texture.width();
+struct PerlinNoiseGenerationContinuation {
+  std::clock_t m_time_spent;
+  real_clock_t::duration m_real_time_spent;
+  std::unique_ptr<PerlinNoise> m_noise;
+  std::unique_ptr<std::atomic<int>> m_threads_finished;
+  std::unique_ptr<std::atomic<bool>> m_need_abort;
+  std::vector<std::thread> m_additional_threads;
+  PerlinNoisePerThreadInfo m_main_thread_info;
+  int m_columns_per_thread;
+  int m_texture_width;
+};
+
+static void do_perlin_generation(PerlinNoisePerThreadInfo& info, auto continueCallback) {
+  NoiseTexture* ptr = info.m_texture.get_mut<NoiseTexture>();
+  if (ptr == nullptr) {
+    return;
+  }
+  NoiseTexture& texture = *ptr;
+  std::shared_lock lock(*texture.m_memory_bitmap_mutex);
   auto height = texture.height();
 
-  auto startTime = std::clock();
-  int x = continuation.m_next_x;
-  int y = continuation.m_next_y;
-  for (; x < width; ++x) {
-    for (; y < height; ++y) {
-      float value = continuation.m_noise(float(x), float(y));
+  auto bitmapOverride = texture.scoped_write_to_memory_bitmap();
+  for (int& x = info.m_next_x; x < info.m_until_x; ++x) {
+    for (int y = 0; y < height; ++y) {
+      float value = (*info.m_noise)(float(x), float(y));
       auto brightness = uint8_t(255.0f * value);
       texture.set(x, y, al_map_rgb(brightness, brightness, brightness));
     }
-    y = 0;
-    auto curTimeSpent = std::clock() - startTime;
 
-    if (curTimeSpent >= time_budget) {
-      continuation.m_time_spent += curTimeSpent;
-      continuation.m_next_x = x;
-      continuation.m_next_y = y;
-      return false;
+    if (!continueCallback()) {
+      return;
     }
   }
-  continuation.m_time_spent += std::clock() - startTime;
-  return true;
 }
 
-static void generate_perlin_noise_texture(flecs::world& ecs, const Menu::EventGeneratePerlinNoiseTexture& event) {
+static void additional_thread_perlin_func(PerlinNoisePerThreadInfo thread_info) {
+  while (thread_info.m_next_x < thread_info.m_until_x) {
+    auto* texture = thread_info.m_texture.get<NoiseTexture>();
+    texture->m_prepearing_for_draw->wait(true);
+
+    bool needAbort = false;
+    do_perlin_generation(thread_info, [&] {
+      needAbort = thread_info.m_need_abort->load();
+      return !needAbort && !(texture->m_prepearing_for_draw->load());
+    });
+    if (needAbort) {
+      info("thread aborted ({}/{})", thread_info.m_next_x, thread_info.m_until_x);
+      return;
+    }
+    info("thread pausing ({}/{})", thread_info.m_next_x, thread_info.m_until_x);
+  }
+  info("thread finished work (until {})", thread_info.m_until_x);
+  thread_info.m_threads_finished->fetch_add(1);
+}
+
+static int calc_perlin_thread_finish(int thread_idx, int columns_per_thread, int width) {
+  return thread_idx == s_num_threads - 1 ? width : (thread_idx + 1) * columns_per_thread;
+}
+
+static void init_perlin_noise_generation_threads(PerlinNoiseGenerationContinuation& continuation) {
+  continuation.m_additional_threads.reserve(s_num_threads - 1);
+  info("initializing threads. {} {}", continuation.m_columns_per_thread, continuation.m_texture_width);
+  for (int i = 1; i < s_num_threads; ++i) { // first thread is the main thread
+    PerlinNoisePerThreadInfo newThreadInfo {
+      .m_texture = continuation.m_main_thread_info.m_texture,
+      .m_next_x = i * continuation.m_columns_per_thread,
+      .m_until_x = calc_perlin_thread_finish(i, continuation.m_columns_per_thread, continuation.m_texture_width),
+      .m_noise = continuation.m_noise.get(),
+      .m_threads_finished = continuation.m_threads_finished.get(),
+      .m_need_abort = continuation.m_need_abort.get()
+    };
+    info("creating thread {}. Will work from {} to {}", i, newThreadInfo.m_next_x, newThreadInfo.m_until_x);
+    continuation.m_additional_threads.emplace_back(additional_thread_perlin_func, newThreadInfo);
+  }
+}
+
+static bool continue_perlin_noise_generation(PerlinNoiseGenerationContinuation& continuation, std::chrono::milliseconds time_budget) {
+  auto startTime = std::clock(); // processor time
+  auto startRealTime = real_clock_t::now();
+
+  NoiseTexture& texture = *continuation.m_main_thread_info.m_texture.get_mut<NoiseTexture>();
+  texture.mark_modified();
+  
+  if (continuation.m_main_thread_info.m_next_x == continuation.m_main_thread_info.m_until_x) {
+    // main thread finished
+    std::this_thread::sleep_for(time_budget);
+  } else {
+    do_perlin_generation(continuation.m_main_thread_info, [&]{ 
+      auto curRealTimeSpent = real_clock_t::now() - startRealTime;
+      return curRealTimeSpent < time_budget;
+    });
+  }
+
+  info("pausing generation. Spent {}ms. {} threads finished, main finished - {}",
+    std::chrono::duration_cast<std::chrono::milliseconds>(real_clock_t::now() - startRealTime).count(),
+    continuation.m_threads_finished->load(),
+    continuation.m_main_thread_info.m_next_x == continuation.m_main_thread_info.m_until_x);
+
+  continuation.m_time_spent += std::clock() - startTime;
+  continuation.m_real_time_spent += real_clock_t::now() - startRealTime;
+  
+  auto allThreadsFinished = continuation.m_threads_finished->load() == continuation.m_additional_threads.size()
+                            && continuation.m_main_thread_info.m_next_x == continuation.m_main_thread_info.m_until_x;
+  if (allThreadsFinished) {
+    for (auto& t : continuation.m_additional_threads) {
+      t.join();
+    }
+  }
+
+  return allThreadsFinished;
+}
+
+static void clear_previous_texture(flecs::world& ecs) {
+  ecs.each([](flecs::entity entity, PerlinNoiseGenerationContinuation& continuation){
+    continuation.m_need_abort->store(true);
+    for (auto& thread : continuation.m_additional_threads) {
+      thread.join();
+    }
+    entity.destruct();
+  });
   ecs.each([](flecs::entity entity, const NoiseTexture&){
     entity.destruct();
   });
-  ecs.each([](flecs::entity entity, const PerlinNoiseGenerationContinuation&){
-    entity.destruct();
-  });
+}
 
+
+static void generate_perlin_noise_texture(flecs::world& ecs, const Menu::EventGeneratePerlinNoiseTexture& event) {
+  clear_previous_texture(ecs);
   auto textureEntity = ecs.entity().emplace<NoiseTexture>(event.size[0], event.size[1]);
 
   auto seed = [&]{
@@ -70,12 +173,12 @@ static void generate_perlin_noise_texture(flecs::world& ecs, const Menu::EventGe
   std::default_random_engine eng(seed);
 
   auto startTime = std::clock();
+  auto realStartTime = real_clock_t::now();
 
   PerlinNoiseGenerationContinuation continuation{
-    .m_texture = textureEntity,
     .m_time_spent = 0,
-    .m_random_state = eng,
-    .m_noise = PerlinNoise({
+    .m_real_time_spent = {},
+    .m_noise = std::make_unique<PerlinNoise>(PerlinNoiseParameters{
       .grid_size_x = event.grid_size[0],
       .grid_size_y = event.grid_size[1],
 
@@ -88,17 +191,32 @@ static void generate_perlin_noise_texture(flecs::world& ecs, const Menu::EventGe
       .normalize_offsets = event.normalize_offsets,
       .interpolation_algorithm = event.interpolation_algorithm
     }, eng),
-    .m_next_x = 0,
-    .m_next_y = 0
+    .m_threads_finished = std::make_unique<std::atomic<int>>(0),
+    .m_need_abort = std::make_unique<std::atomic<bool>>(false),
+    .m_additional_threads = {},
+    .m_main_thread_info = {
+      .m_texture = textureEntity,
+      .m_next_x = 0,
+      .m_until_x = 0,
+      .m_noise = continuation.m_noise.get(),
+      .m_threads_finished = continuation.m_threads_finished.get(),
+      .m_need_abort = continuation.m_need_abort.get(),
+    },
+    .m_columns_per_thread = event.size[0] / s_num_threads,
+    .m_texture_width = event.size[0],
   };
+
   continuation.m_time_spent = std::clock() - startTime;
+  continuation.m_real_time_spent = real_clock_t::now() - realStartTime;
+
+  continuation.m_main_thread_info.m_until_x = calc_perlin_thread_finish(0, continuation.m_columns_per_thread, continuation.m_texture_width);
+  info("main thread will work from {} to {}", continuation.m_main_thread_info.m_next_x, continuation.m_main_thread_info.m_until_x);
+  
   ecs.entity().emplace<PerlinNoiseGenerationContinuation>(std::move(continuation));
 }
 
 static void generate_white_noise_texture(flecs::world& ecs, const Menu::EventGenerateWhiteNoiseTexture& event) {
-  ecs.each([](flecs::entity entity, const NoiseTexture&){
-    entity.destruct();
-  });
+  clear_previous_texture(ecs);
   NoiseTexture texture(event.size[0], event.size[1]);
 
   std::random_device dev{};
@@ -110,6 +228,10 @@ static void generate_white_noise_texture(flecs::world& ecs, const Menu::EventGen
 
   auto width = texture.width();
   auto height = texture.height();
+  texture.mark_modified();
+
+  {
+  auto bitmapOverride = texture.scoped_write_to_memory_bitmap();
   for (int x = 0; x < width; ++x) {
     for (int y = 0; y < height; ++y) {
       uint8_t r = distr(eng) ? 0 : 255;
@@ -118,10 +240,15 @@ static void generate_white_noise_texture(flecs::world& ecs, const Menu::EventGen
       texture.set(x, y, al_map_rgb(r, g, b));
     }
   }
+  } // end of bitmap override scope
+
   auto timeTaken = std::clock() - startTime;
   ecs.each([&ecs, &timeTaken](flecs::entity entity, Menu::EventReceiver){
     ecs.event<Menu::EventGenerationFinished>()
-      .ctx(Menu::EventGenerationFinished{.secondsTaken = double(timeTaken) / double(CLOCKS_PER_SEC)})
+      .ctx(Menu::EventGenerationFinished{
+        .secondsTaken = double(timeTaken) / double(CLOCKS_PER_SEC),
+        .realDuration = 0us
+      })
       .entity(entity)
       .emit();
   });
@@ -261,9 +388,7 @@ static ALLEGRO_COLOR bicubic_wiki(int x, int y, int width, int height, const Men
 }
 
 static void generate_interpolated_texture(flecs::world& ecs, const Menu::EventGenerateInterpolatedTexture& event) {
-  ecs.each([](flecs::entity entity, const NoiseTexture&){
-    entity.destruct();
-  });
+  clear_previous_texture(ecs);
   NoiseTexture texture(event.size[0], event.size[1]);
   // Texture has 16 points. Will interpolate between them
 
@@ -288,15 +413,22 @@ static void generate_interpolated_texture(flecs::world& ecs, const Menu::EventGe
     std::unreachable();
   }
 
+  texture.mark_modified();
+  {
+  auto bitmapOverride = texture.scoped_write_to_memory_bitmap();
   for (int x = 0; x < width; ++x) {
     for (int y = 0; y < height; ++y) {
       texture.set(x, y, interpolator(x, y, width, height, event));
     }
   }
+  } // end of bitmap override scope
   auto timeTaken = std::clock() - startTime;
   ecs.each([&ecs, &timeTaken](flecs::entity entity, Menu::EventReceiver){
     ecs.event<Menu::EventGenerationFinished>()
-      .ctx(Menu::EventGenerationFinished{.secondsTaken = double(timeTaken) / double(CLOCKS_PER_SEC)})
+      .ctx(Menu::EventGenerationFinished{
+        .secondsTaken = double(timeTaken) / double(CLOCKS_PER_SEC), 
+        .realDuration = 0us
+      })
       .entity(entity)
       .emit();
   });
@@ -330,13 +462,18 @@ TextureGenerationModule::TextureGenerationModule(flecs::world& ecs) {
     .kind(flecs::OnUpdate)
     .each([](const flecs::iter& it, size_t entity_index, PerlinNoiseGenerationContinuation& continuation) {
       auto ecs = it.world();
-      const int budgetMilliseconds = 20;
-      const auto allowedTime = CLOCKS_PER_SEC * budgetMilliseconds / 1000;
-      bool didFinish = continue_perlin_noise_generation(continuation, allowedTime);
+
+      if (continuation.m_additional_threads.empty())
+        init_perlin_noise_generation_threads(continuation);
+
+      bool didFinish = continue_perlin_noise_generation(continuation, 25ms);
       if (didFinish) {
         ecs.each([&ecs, &continuation](flecs::entity entity, Menu::EventReceiver){
           ecs.event<Menu::EventGenerationFinished>()
-            .ctx(Menu::EventGenerationFinished{.secondsTaken = double(continuation.m_time_spent) / double(CLOCKS_PER_SEC)})
+            .ctx(Menu::EventGenerationFinished{
+              .secondsTaken = double(continuation.m_time_spent) / double(CLOCKS_PER_SEC),
+              .realDuration = continuation.m_real_time_spent,
+            })
             .entity(entity)
             .emit();
         });
@@ -344,4 +481,3 @@ TextureGenerationModule::TextureGenerationModule(flecs::world& ecs) {
       }
     });
 }
-

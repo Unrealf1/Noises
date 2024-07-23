@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <gui/menu.hpp>
 
-#include <spdlog/spdlog.h>
+#include <log.hpp>
 
 static flecs::query<InspectionState> s_inspection_state_query;
 

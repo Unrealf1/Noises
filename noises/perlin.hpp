@@ -38,7 +38,7 @@ public:
   }
 
   
-  float operator()(float x, float y);
+  float operator()(float x, float y) const;
 
 private:
   PerlinNoiseParameters m_parameters;
