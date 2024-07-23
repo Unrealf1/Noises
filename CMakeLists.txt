@@ -79,9 +79,9 @@ CPMAddPackage(
 
 CPMAddPackage(
   NAME flecs
-  VERSION 3.2.11
+  VERSION 3.2.12
   GITHUB_REPOSITORY SanderMertens/flecs
-  GIT_TAG v3.2.11
+  GIT_TAG v3.2.12
   OPTIONS
   "FLECS_SHARED OFF"
 )
