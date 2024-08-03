@@ -25,7 +25,7 @@ CameraModule::CameraModule(flecs::world& ecs) {
   get_input_event_receiver()
     .observe([](EventDisplayResize event){
       s_camera_state_query.each([&event](CameraState& camera_state){
-        camera_state.display_dimentions = vec2{event.width, event.height};
+        camera_state.display_dimentions = ivec2{event.width, event.height};
       });
     });
 
@@ -61,7 +61,7 @@ CameraModule::CameraModule(flecs::world& ecs) {
         }
 
         if (camera_state.is_dragging) {
-          camera_state.center -= vec2{event.dx, event.dy} / camera_state.zoom;
+          camera_state.center -= vec2(ivec2{event.dx, event.dy}) / camera_state.zoom;
         }
       });
     });
@@ -106,7 +106,7 @@ CameraModule::CameraModule(flecs::world& ecs) {
   ecs.system<CameraState>("Calculate view box")
     .kind(phase::BeforeRender())
     .each([](CameraState& state){
-      auto zoomedDims = state.display_dimentions / state.zoom;
+      auto zoomedDims = vec2(state.display_dimentions) / state.zoom;
       state.view = {
         state.center - zoomedDims / 2.0f,
         state.center + zoomedDims / 2.0f

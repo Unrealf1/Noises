@@ -20,7 +20,7 @@ Menu::Menu(flecs::world& ecs, flecs::entity menu_eid) {
   });
 
   m_event_receiver
-    .observe([&ecs, this](const Menu::EventGenerationFinished& event){
+    .observe([this](const Menu::EventGenerationFinished& event){
       m_last_generation_time_seconds = event.secondsTaken;
       m_last_generation_real_time = event.realDuration;
     });
@@ -57,9 +57,9 @@ void Menu::draw(flecs::world& ecs) {
       auto s = std::chrono::duration_cast<std::chrono::seconds>(m_last_generation_real_time);
       auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(m_last_generation_real_time);
       auto us = std::chrono::duration_cast<std::chrono::microseconds>(m_last_generation_real_time);
-      auto [value, name] = ms.count() == 0 ? std::pair{float(us.count()), "us"}
-                           : s.count() == 0 ? std::pair{float(us.count()) / 1000.0f, "ms"}
-                           : std::pair{float(ms.count()) / 1000.0f, "s"};
+      auto [value, name] = ms.count() == 0 ? std::pair{double(us.count()), "us"}
+                           : s.count() == 0 ? std::pair{double(us.count()) / 1000.0, "ms"}
+                           : std::pair{double(ms.count()) / 1000.0, "s"};
       ImGui::SameLine();
       ImGui::Text("%.1f %s real time", value, name);
     }

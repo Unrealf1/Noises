@@ -30,7 +30,7 @@ struct PerlinNoisePerThreadInfo {
   int m_next_x;
   int m_until_x;
   const PerlinNoise* m_noise;
-  std::atomic<int>* m_threads_finished;
+  std::atomic<size_t>* m_threads_finished;
   std::atomic<bool>* m_need_abort;
 };
 
@@ -38,7 +38,7 @@ struct PerlinNoiseGenerationContinuation {
   std::clock_t m_time_spent;
   real_clock_t::duration m_real_time_spent;
   std::unique_ptr<PerlinNoise> m_noise;
-  std::unique_ptr<std::atomic<int>> m_threads_finished;
+  std::unique_ptr<std::atomic<size_t>> m_threads_finished;
   std::unique_ptr<std::atomic<bool>> m_need_abort;
   std::vector<std::thread> m_additional_threads;
   PerlinNoisePerThreadInfo m_main_thread_info;
@@ -150,7 +150,9 @@ static void clear_previous_texture(flecs::world& ecs) {
   ecs.each([](flecs::entity entity, PerlinNoiseGenerationContinuation& continuation){
     continuation.m_need_abort->store(true);
     for (auto& thread : continuation.m_additional_threads) {
-      thread.join();
+      if (thread.joinable()) {
+        thread.join();
+      }
     }
     entity.destruct();
   });
@@ -198,7 +200,7 @@ static void generate_perlin_noise_texture(flecs::world& ecs, const Menu::EventGe
       .normalize_offsets = event.normalize_offsets,
       .interpolation_algorithm = event.interpolation_algorithm
     }, eng),
-    .m_threads_finished = std::make_unique<std::atomic<int>>(0),
+    .m_threads_finished = std::make_unique<std::atomic<size_t>>(0),
     .m_need_abort = std::make_unique<std::atomic<bool>>(false),
     .m_additional_threads = {},
     .m_main_thread_info = {

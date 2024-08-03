@@ -6,7 +6,7 @@
 
 struct CameraState {
   vec2 center{0.0f, 0.0f};
-  vec2 display_dimentions;
+  ivec2 display_dimentions;
   Box2 view;
 
   float zoom = 1.0f;
