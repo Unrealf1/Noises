@@ -1,6 +1,6 @@
 * Algorithms
   - White noise
-  * Perlin noise
+  + Perlin noise
       + bicubic interpolation
       + make generic interpolation implementations and use one in perlin
   - Simplex noise
@@ -29,7 +29,7 @@
   - Custom additional visualization per algorithm
     -   Grid vectors for perlin
     -   Places of "true" pixels in interpolation
-  - Rework Pan with 2d camera in mind
+  + Rework Pan with 2d camera in mind
   - Infinite grid
   ? Save texture to a file
 
@@ -37,7 +37,7 @@
     -   Ui should update its values of cur tex size from on appear event, not set this by hand
     -   Sending generation time by event might be excessive (might be useful for multithread though)
     -   Delete old texture on appearence of a new one?
-  - Create texture with multiple threads
+  + Create texture with multiple threads
   - Look into using plain array instead of memory allegro texture
   - Rework input
     Display has system events as child/sends events to the display entity
