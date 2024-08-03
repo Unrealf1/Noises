@@ -70,7 +70,7 @@ RenderModule::RenderModule(flecs::world& ecs) {
           auto zoomedTopLeft = screenTopLeft * camera.zoom;
 
           // 2. check that it is in the screen
-          const auto drawableBounds = Box2{ drawable.top_left, drawable.top_left + zoomedDims };
+          const auto drawableBounds = Box2{ drawable.top_left, drawable.top_left + bitmapDims };
           if (!camera.view.intersects(drawableBounds)) {
             return;
           }
