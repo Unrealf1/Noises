@@ -2,7 +2,7 @@
 
 #include <gui/gui.hpp>
 #include <array>
-#include <ecs/texture_inspection_module.hpp>
+#include <ecs/camera_module.hpp>
 #include <chrono>
 #include <perlin.hpp>
 
@@ -58,7 +58,7 @@ public:
   flecs::entity m_event_receiver;
 
 private:
-  flecs::query<InspectionState> m_inspection_state_query;
+  flecs::query<CameraState> m_camera_state_query;
   int m_current_texture_size[2] = {0, 0};
   double m_last_generation_time_seconds = 0.0;
   std::chrono::steady_clock::duration m_last_generation_real_time{};

@@ -13,7 +13,7 @@
 Menu::Menu(flecs::world& ecs, flecs::entity menu_eid) {
   m_event_receiver = menu_eid;
   m_event_receiver.add<Menu::EventReceiver>();
-  m_inspection_state_query = ecs.query<InspectionState>();
+  m_camera_state_query = ecs.query<CameraState>();
   ecs.each([this](NoiseTexture& texture){
     m_current_texture_size[0] = texture.width();
     m_current_texture_size[1] = texture.height();
@@ -30,12 +30,12 @@ void Menu::draw(flecs::world& ecs) {
   // General info
   ImGui::Text("FPS = %f", double(ImGui::GetIO().Framerate));
 
-  m_inspection_state_query.each([this](InspectionState& state) {
-    ImGui::Text("Offset: %.1f, %.1f", double(state.x_offset), double(state.y_offset));
+  m_camera_state_query.each([this](CameraState& state) {
+    ImGui::Text("Offset: %.1f, %.1f", double(state.center.x), double(state.center.y));
     ImGui::SameLine(0.0f, 10.0f);
     if (ImGui::Button("Reset##Offset")) {
-      state.x_offset = 0.0f;
-      state.y_offset = 0.0f;
+      state.center.x = 0.0f;
+      state.center.y = 0.0f;
     }
 
     ImGui::Text("Zoom: %.1f%%", double(state.zoom * 100.0f));

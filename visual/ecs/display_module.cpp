@@ -6,7 +6,6 @@
 #include <imgui_inc.hpp>
 
 #include <log.hpp>
-#include <ecs/texture_inspection_module.hpp>
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
@@ -42,7 +41,6 @@ struct SystemEvents : public EventQueue {
   void process(flecs::world& ecs);
 };
 
-static flecs::query<InspectionState> s_inspection_state_query;
 
 static void process_mouse_event(flecs::world& ecs, ALLEGRO_EVENT event, const flecs::entity& event_receiver) {
   if (event.type == ALLEGRO_EVENT_MOUSE_AXES) {
@@ -152,7 +150,6 @@ DisplayModule::DisplayModule(flecs::world& ecs) {
   emscripten_set_resize_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, 0, 0, on_web_display_size_changed);
 #endif
 
-  s_inspection_state_query = ecs.query<InspectionState>();
   s_InputEventReceiver = ecs.entity()
     .add<ALLEGRO_KEYBOARD_STATE>();
 

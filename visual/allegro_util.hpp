@@ -18,6 +18,7 @@ protected:
 
 public:
     template<typename... Args>
+    requires requires(const Args&... args) { Actual::init(args...); }
     AllegroDecorator(const Args&... args) : al_pointer(Actual::init(args...)) {
         if (al_pointer == nullptr) {
             throw AllegroInitException(std::string(util::type_name<Raw>()));

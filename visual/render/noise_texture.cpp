@@ -23,15 +23,12 @@ ALLEGRO_COLOR NoiseTexture::get(int x, int y) {
   return al_get_pixel(m_memory_bitmap.get_raw(), x, y);
 }
 
-void NoiseTexture::prepare_for_update() {
-}
-
-void NoiseTexture::prepare_for_draw() {
+void NoiseTexture::prepare_for_draw(Bitmap& draw_on) {
   m_prepearing_for_draw->store(true);
   m_memory_bitmap_mutex->lock();
   al_unlock_bitmap(m_memory_bitmap.get_raw());
   if (m_was_modified_during_update) {
-    auto override = TargetBitmapOverride(m_draw_bitmap.get_raw());
+    auto override = TargetBitmapOverride(draw_on.get_raw());
     al_draw_bitmap(m_memory_bitmap.get_raw(), 0, 0, 0);
     m_was_modified_during_update = false;
   }
@@ -48,28 +45,3 @@ int NoiseTexture::width() {
 int NoiseTexture::height() {
   return m_memory_bitmap.height();
 }
-
-void NoiseTexture::draw(ALLEGRO_DISPLAY* display, const InspectionState& inspectionState) {
-  auto displayBitmap = al_get_backbuffer(display);
-  auto override = TargetBitmapOverride(displayBitmap);
-
-  auto texWidth = float(al_get_bitmap_width(m_draw_bitmap.get_raw()));
-  auto texHeight = float(al_get_bitmap_height(m_draw_bitmap.get_raw()));
-
-  auto zoomTexWidth = texWidth * inspectionState.zoom;
-  auto zoomTexHeight = texHeight * inspectionState.zoom;
-
-  // no zoomed center - zoomed center
-  auto zoomToCenterCompensationX = (texWidth - zoomTexWidth) / 2.0f;
-  auto zoomToCenterCompensationY = (texHeight - zoomTexHeight) / 2.0f;
-
-  auto zoomOffsetX = inspectionState.x_offset + zoomToCenterCompensationX;
-  auto zoomOffsetY = inspectionState.y_offset + zoomToCenterCompensationY;
-
-  al_draw_scaled_bitmap(m_draw_bitmap.get_raw(),
-    0.0f, 0.0f,
-    texWidth, texHeight,
-    zoomOffsetX, zoomOffsetY,
-    zoomTexWidth, zoomTexHeight, 0);
-}
-

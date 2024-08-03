@@ -1,7 +1,6 @@
 #pragma once
 
 #include <allegro_util.hpp>
-#include <ecs/texture_inspection_module.hpp>
 #include <shared_mutex>
 #include <memory>
 #include <atomic>
@@ -20,10 +19,7 @@ struct NoiseTexture {
   int width();
   int height();
 
-  void draw(ALLEGRO_DISPLAY*, const InspectionState&);
-
-  void prepare_for_update();
-  void prepare_for_draw();
+  void prepare_for_draw(Bitmap& draw_on);
 
   Bitmap m_draw_bitmap;
   Bitmap m_memory_bitmap;

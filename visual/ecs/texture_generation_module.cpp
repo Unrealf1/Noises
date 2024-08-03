@@ -2,6 +2,8 @@
 
 #include <gui/menu.hpp>
 #include <render/noise_texture.hpp>
+#include <ecs/render_module.hpp>
+#include <render/drawable_bitmap.hpp>
 #include <math.hpp>
 #include <perlin.hpp>
 #include <interpolation.hpp>
@@ -160,7 +162,12 @@ static void clear_previous_texture(flecs::world& ecs) {
 
 static void generate_perlin_noise_texture(flecs::world& ecs, const Menu::EventGeneratePerlinNoiseTexture& event) {
   clear_previous_texture(ecs);
-  auto textureEntity = ecs.entity().emplace<NoiseTexture>(event.size[0], event.size[1]);
+  auto textureEntity = ecs.entity()
+    .emplace<NoiseTexture>(event.size[0], event.size[1])
+    .emplace<DrawableBitmap>(
+      Bitmap(event.size[0], event.size[1]),
+      vec2{0.0f, 0.0f}
+     );
 
   auto seed = [&]{
     if (event.random_seed <= 0) {
@@ -252,7 +259,12 @@ static void generate_white_noise_texture(flecs::world& ecs, const Menu::EventGen
       .entity(entity)
       .emit();
   });
-  ecs.entity().emplace<NoiseTexture>(std::move(texture));
+  ecs.entity()
+    .emplace<NoiseTexture>(std::move(texture))
+    .set<DrawableBitmap>({
+      .bitmap = Bitmap(event.size[0], event.size[1]),
+      .top_left = {0.0f, 0.0f}
+     });
 }
 
 struct SectorCoords {
@@ -432,7 +444,12 @@ static void generate_interpolated_texture(flecs::world& ecs, const Menu::EventGe
       .entity(entity)
       .emit();
   });
-  ecs.entity().emplace<NoiseTexture>(std::move(texture));
+  ecs.entity()
+    .emplace<NoiseTexture>(std::move(texture))
+    .set<DrawableBitmap>({
+      .bitmap = Bitmap(event.size[0], event.size[1]),
+      .top_left = {0.0f, 0.0f}
+     });
   
 }
 
@@ -479,5 +496,11 @@ TextureGenerationModule::TextureGenerationModule(flecs::world& ecs) {
         });
         it.entity(entity_index).destruct();
       }
+    });
+
+  ecs.system<NoiseTexture, DrawableBitmap>("Prepare noise texture draw")
+    .kind(phase::BeforeRender())
+    .each([](NoiseTexture& texture, DrawableBitmap& drawable) {
+      texture.prepare_for_draw(drawable.bitmap);
     });
 }
