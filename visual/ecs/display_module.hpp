@@ -18,6 +18,8 @@ struct EventMouseWarped : public ALLEGRO_MOUSE_EVENT { };
 struct EventKeyDown : public ALLEGRO_KEYBOARD_EVENT { };
 struct EventKeyUp : public ALLEGRO_KEYBOARD_EVENT { };
 
+struct EventDisplayResize : public ALLEGRO_DISPLAY_EVENT { };
+
 flecs::entity get_input_event_receiver();
 
 struct DisplayHolder {

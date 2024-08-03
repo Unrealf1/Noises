@@ -23,6 +23,13 @@ CameraModule::CameraModule(flecs::world& ecs) {
     .emplace<CameraState>(cameraState);
 
   get_input_event_receiver()
+    .observe([](EventDisplayResize event){
+      s_camera_state_query.each([&event](CameraState& camera_state){
+        camera_state.display_dimentions = vec2{event.width, event.height};
+      });
+    });
+
+  get_input_event_receiver()
     .observe([](EventMouseButtonDown event){
       if (event.button != 1) {
         return;
@@ -54,7 +61,7 @@ CameraModule::CameraModule(flecs::world& ecs) {
         }
 
         if (camera_state.is_dragging) {
-          camera_state.center -= vec2{event.dx, event.dy};
+          camera_state.center -= vec2{event.dx, event.dy} / camera_state.zoom;
         }
       });
     });

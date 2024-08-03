@@ -95,6 +95,7 @@ void SystemEvents::process(flecs::world& ecs) {
     ALLEGRO_EVENT event;
     get(event);
 
+    flecs::entity eventReceiver = get_input_event_receiver();
     if (event.type == ALLEGRO_EVENT_DISPLAY_CLOSE) {
       app::stop();
       break;
@@ -102,11 +103,14 @@ void SystemEvents::process(flecs::world& ecs) {
       ImGui_ImplAllegro5_InvalidateDeviceObjects();
       al_acknowledge_resize(event.display.source);
       ImGui_ImplAllegro5_CreateDeviceObjects();
+      ecs.event<EventDisplayResize>()
+        .ctx(EventDisplayResize{event.display})
+        .entity(eventReceiver)
+        .emit();
     }
 
     ImGui_ImplAllegro5_ProcessEvent(&event);
 
-    flecs::entity eventReceiver = get_input_event_receiver();
     if (event.any.source == al_get_mouse_event_source()) {
       if (ImGui::GetIO().WantCaptureMouse) {
         continue;
