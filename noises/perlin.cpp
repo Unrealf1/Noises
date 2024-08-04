@@ -104,7 +104,7 @@ float PerlinNoise::operator()(float x, float y) const {
     }
     case PerlinNoiseParameters::InterpolationAlgorithm::nearest_neighboor: {
       auto dx = centeredX - leftPos;
-      auto dy = centeredY - rightPos;
+      auto dy = centeredY - topPos;
 
       bool isLeft = dx <= m_parameters.grid_step_x / 2.0f;
       bool isTop = dy <= m_parameters.grid_step_y / 2.0f;
