@@ -477,6 +477,12 @@ TextureGenerationModule::TextureGenerationModule(flecs::world& ecs) {
       generate_interpolated_texture(ecs, event);    
     });
 
+  ecs.observer<NoiseTexture, DrawableBitmap>()
+    .event(flecs::OnSet)
+    .each([](NoiseTexture& noise, DrawableBitmap& bitmap){
+      bitmap.top_left = vec2(ivec2{-noise.width() / 2, -noise.height() / 2});
+    });
+
   ecs.system<PerlinNoiseGenerationContinuation>("Perlin noise generation")
     .kind(flecs::OnUpdate)
     .each([](const flecs::iter& it, size_t entity_index, PerlinNoiseGenerationContinuation& continuation) {
