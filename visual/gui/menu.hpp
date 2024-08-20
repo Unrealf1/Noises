@@ -22,8 +22,8 @@ public:
   struct EventGeneratePerlinNoiseTexture {
     int size[2] = {s_default_texture_size, s_default_texture_size};
 
-    int grid_size[2] = {90, 90};
-    float grid_step[2] = {10.0f, 10.0f};
+    int grid_size[2] = {31, 31};
+    float grid_step[2] = {30.0f, 30.0f};
 
     float offset[2] = {0.0f, 0.0f};
     bool normalize_offsets = false;
