@@ -1,5 +1,6 @@
 #include "menu.hpp"
 
+#include <build_number.h>
 #include <imgui_inc.hpp>
 #include <render/noise_texture.hpp>
 #include <format>
@@ -28,6 +29,8 @@ Menu::Menu(flecs::world& ecs, flecs::entity menu_eid) {
 
 void Menu::draw(flecs::world& ecs) {
   // General info
+  ImGui::Text("Build: %s(%d)", CMAKE_BUILD_TYPE, BUILD_NUMBER);
+  ImGui::SameLine();
   ImGui::Text("FPS = %f", double(ImGui::GetIO().Framerate));
 
   m_camera_state_query.each([this](CameraState& state) {

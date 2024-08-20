@@ -153,6 +153,16 @@ target_link_libraries(noises PRIVATE project_options project_warnings)
 
 file(GLOB_RECURSE VISUAL_SOURCES . visual/*.[ch]pp)
 add_executable(visual ${VISUAL_SOURCES})
+
+add_custom_target(
+  build_number_target
+  COMMAND "${CMAKE_COMMAND}" "-D ROOT_DIR=${CMAKE_CURRENT_SOURCE_DIR}" "-P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/build_number.cmake"
+  SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/cmake/build_number.cmake"
+)
+add_dependencies(visual build_number_target)
+
+target_compile_definitions(visual PRIVATE CMAKE_BUILD_TYPE="${CMAKE_BUILD_TYPE}")
+
 target_include_directories(visual PUBLIC visual external)
 target_include_directories(visual SYSTEM PRIVATE ${allegro_includes})
 target_link_libraries(visual PUBLIC flecs::flecs_static noises allegro allegro_primitives allegro_font imgui ${BUILD_DEPENDANT_LIBS})
