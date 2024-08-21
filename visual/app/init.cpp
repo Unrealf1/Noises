@@ -6,6 +6,8 @@
 #include <ecs/gui_module.hpp>
 #include <ecs/camera_module.hpp>
 #include <ecs/texture_generation_module.hpp>
+#include <app/build_info.hpp>
+#include <spdlog/spdlog.h>
 
 
 void import_modules(flecs::world& ecs) {
@@ -17,6 +19,7 @@ void import_modules(flecs::world& ecs) {
 }
 
 void app::init(flecs::world& ecs) {
+  spdlog::info("Starting application. Build: {}", s_build_string);
   import_modules(ecs);
 }
 

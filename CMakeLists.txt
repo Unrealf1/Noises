@@ -155,13 +155,14 @@ file(GLOB_RECURSE VISUAL_SOURCES . visual/*.[ch]pp)
 add_executable(visual ${VISUAL_SOURCES})
 
 add_custom_target(
-  build_number_target
-  COMMAND "${CMAKE_COMMAND}" "-D ROOT_DIR=${CMAKE_CURRENT_SOURCE_DIR}" "-P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/build_number.cmake"
-  SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/cmake/build_number.cmake"
+  build_info_generation
+  COMMAND "${CMAKE_COMMAND}"
+    "-D ROOT_DIR=${CMAKE_CURRENT_SOURCE_DIR}"
+    "-D CMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}"
+    "-P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/generate_build_info.cmake"
+  SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/cmake/generate_build_info.cmake"
 )
-add_dependencies(visual build_number_target)
-
-target_compile_definitions(visual PRIVATE CMAKE_BUILD_TYPE="${CMAKE_BUILD_TYPE}")
+add_dependencies(visual build_info_generation)
 
 target_include_directories(visual PUBLIC visual external)
 target_include_directories(visual SYSTEM PRIVATE ${allegro_includes})

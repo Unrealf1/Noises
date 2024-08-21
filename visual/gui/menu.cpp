@@ -1,6 +1,6 @@
 #include "menu.hpp"
 
-#include <build_number.h>
+#include <app/build_info.hpp>
 #include <imgui_inc.hpp>
 #include <render/noise_texture.hpp>
 #include <format>
@@ -29,7 +29,7 @@ Menu::Menu(flecs::world& ecs, flecs::entity menu_eid) {
 
 void Menu::draw(flecs::world& ecs) {
   // General info
-  ImGui::Text("Build: %s(%d)", CMAKE_BUILD_TYPE, BUILD_NUMBER);
+  ImGui::Text("Build: %s", s_build_string);
   ImGui::SameLine();
   ImGui::Text("FPS = %f", double(ImGui::GetIO().Framerate));
 
