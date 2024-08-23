@@ -39,6 +39,7 @@ TextureGenerationModule::TextureGenerationModule(flecs::world& ecs) {
       generate_perlin_noise_texture(ecs, event);
     });
 
+  init_interpolated_generation_systems(ecs);
   m_menu_event_receiver
     .observe([&ecs](const Menu::EventGenerateInterpolatedTexture& event) {
       clear_previous_texture(ecs);

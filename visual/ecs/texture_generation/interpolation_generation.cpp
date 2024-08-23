@@ -6,10 +6,59 @@
 #include <render/drawable_bitmap.hpp>
 #include <utility>
 #include <chrono>
+#include <log.hpp>
+
 
 using namespace std::chrono_literals;
 using real_clock_t = std::chrono::steady_clock;
 
+struct TrueInterpolationPixelVisualization : public Tag {};
+struct InterpolatedTextureInfo : public Menu::EventGenerateInterpolatedTexture {};
+
+
+static void clear_true_pixels(flecs::world& ecs) {
+  ecs.each([](flecs::entity eid, TrueInterpolationPixelVisualization){
+    eid.destruct();
+  });
+}
+
+void init_interpolated_generation_systems(flecs::world& ecs) {
+  ecs.observer<Menu::EventReceiver>()
+    .event<Menu::EventShowInterpTruePixels>()
+    .each([](flecs::iter& it, size_t, Menu::EventReceiver){
+      auto world = it.world();
+      world.each([&world](const InterpolatedTextureInfo& info, const DrawableBitmap& noiseBitmap){
+        clear_true_pixels(world);
+        const int iTexSize = std::max(std::min(info.size[0], info.size[1]) / 10, 3);
+        const float texSize = static_cast<float>(iTexSize);
+        const float borderSize = std::max(texSize / 10.0f, 1.0f);
+        const vec2 offset = noiseBitmap.top_left - vec2{texSize, texSize} / 2.0f;
+        for (int i = 0; i < 4; ++i) {
+          for (int j = 0; j < 4; ++j) {
+            const float* color = &info.colors[(i + j * 4) * 3];
+            vec2 topLeft = offset + vec2(ivec2{ i * info.size[0] / 3, j * info.size[1] / 3 });
+            Bitmap bitmap(iTexSize, iTexSize);
+            TargetBitmapOverride targetOverride(bitmap.get_raw());
+
+            al_draw_filled_rectangle(0.0f, 0.0f, texSize, texSize, al_map_rgb_f(color[0], color[1], color[2]));
+            al_draw_rectangle(0.0f, 0.0f, texSize, texSize, al_map_rgb(0, 0, 0), borderSize);
+            world.entity()
+              .emplace<DrawableBitmap>(std::move(bitmap), topLeft)
+              .add<TrueInterpolationPixelVisualization>();
+          }
+        }
+      });
+  });
+
+  ecs.observer<Menu::EventReceiver>()
+    .event<Menu::EventHideInterpTruePixels>()
+    .event<Menu::EventGenerateWhiteNoiseTexture>()
+    .event<Menu::EventGeneratePerlinNoiseTexture>()
+    .each([](flecs::iter& it, size_t, Menu::EventReceiver){
+      auto world = it.world();
+      clear_true_pixels(world);
+    });
+}
 
 struct SectorCoords {
   int width;
@@ -190,6 +239,7 @@ void generate_interpolated_texture(flecs::world& ecs, const Menu::EventGenerateI
 
   ecs.entity()
     .emplace<NoiseTexture>(std::move(texture))
+    .emplace<InterpolatedTextureInfo>(event)
     .emplace<DrawableBitmap>(
       Bitmap(event.size[0], event.size[1]),
       vec2{0.0f, 0.0f}

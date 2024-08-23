@@ -3,6 +3,7 @@
 #include <gui/gui.hpp>
 #include <array>
 #include <ecs/camera_module.hpp>
+#include <ecs/util.hpp>
 #include <chrono>
 #include <perlin.hpp>
 
@@ -50,6 +51,9 @@ public:
     double secondsTaken;
     std::chrono::steady_clock::duration realDuration;
   };
+  struct EventShowInterpTruePixels : public EmptyEvent {};
+  struct EventHideInterpTruePixels : public EmptyEvent {};
+
 public:
   Menu(flecs::world&, flecs::entity menu_eid);
   void draw(flecs::world&) override;
