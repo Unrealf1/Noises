@@ -116,6 +116,7 @@ static void interpolation_menu(flecs::world& ecs, Menu::EventGenerateInterpolate
   }
 }
 
+#ifndef __EMSCRIPTEN__
 static void native_save_dialog(flecs::world& ecs) {
   const char* const fileDialogKey = "draw_save_dialog_key";
   if (ImGui::Button("Save")) {
@@ -136,11 +137,12 @@ static void native_save_dialog(flecs::world& ecs) {
     ImGuiFileDialog::Instance()->Close();
   }
 }
+#endif //__EMSCRIPTEN__
 
 void Menu::draw(flecs::world& ecs) {
   general_info();
 
-  m_camera_state_query.each([this](CameraState& state) {
+  m_camera_state_query.each([](CameraState& state) {
     camera_info(state);
   });
 
