@@ -54,10 +54,10 @@ float PerlinNoise::operator()(float x, float y) const {
     botLeftOffset[1] /= botLeftOffsetLen;
   }
 
-  const float* topLeftValue = &m_grid_data[size_t(left + top * m_parameters.grid_size_x) * 2];
-  const float* topRightValue = &m_grid_data[size_t(right + top * m_parameters.grid_size_x) * 2];
-  const float* botRightValue = &m_grid_data[size_t(right + bot * m_parameters.grid_size_x) * 2];
-  const float* botLeftValue = &m_grid_data[size_t(left + bot * m_parameters.grid_size_x) * 2];
+  const float* topLeftValue = get_grid_node_data(left, top);
+  const float* topRightValue = get_grid_node_data(right, top);
+  const float* botRightValue = get_grid_node_data(right, bot);
+  const float* botLeftValue = get_grid_node_data(left, bot);
 
   float topLeftDot = topLeftOffset[0] * topLeftValue[0] + topLeftOffset[1] * topLeftValue[1];
   float topRightDot = topRightOffset[0] * topRightValue[0] + topRightOffset[1] * topRightValue[1];
@@ -121,5 +121,13 @@ float PerlinNoise::operator()(float x, float y) const {
   float cellDiagonal = std::sqrt(m_parameters.grid_step_x * m_parameters.grid_step_x + m_parameters.grid_step_y * m_parameters.grid_step_y);
   float normalizedResult = m_parameters.normalize_offsets ? result : result / cellDiagonal;
   return std::clamp((1.0f + normalizedResult) / 2.0f, 0.0f, 1.0f);
+}
+
+float* PerlinNoise::get_grid_node_data(int x, int y) {
+  return &m_grid_data[size_t(x + y * m_parameters.grid_size_x) * 2];
+}
+
+const float* PerlinNoise::get_grid_node_data(int x, int y) const {
+  return &m_grid_data[size_t(x + y * m_parameters.grid_size_x) * 2];
 }
 

@@ -40,8 +40,10 @@ public:
   
   float operator()(float x, float y) const;
 
-private:
-  PerlinNoiseParameters m_parameters;
+  float* get_grid_node_data(int x, int y);
+  const float* get_grid_node_data(int x, int y) const;
+
+  const PerlinNoiseParameters m_parameters;
   std::vector<float> m_grid_data;
 };
 
