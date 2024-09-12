@@ -60,27 +60,35 @@ RenderModule::RenderModule(flecs::world& ecs) {
       s_display_query.each([&camera](const DisplayHolder& display){
         auto displayBitmap = al_get_backbuffer(display.display);
         auto targetOverride = TargetBitmapOverride(displayBitmap);
+        const vec2 halfDisplayDims = vec2(camera.display_dimentions) / 2.0f;
 
-        s_drawable_bitmap_query.each([&camera](DrawableBitmap& drawable){
+        s_drawable_bitmap_query.each([&camera, halfDisplayDims](flecs::entity eid, DrawableBitmap& drawable){
+          const auto scale_ptr = eid.get<DrawableBitmapScale>();
+          const vec2 bitmapScale = scale_ptr != nullptr ? vec2(*scale_ptr) : vec2{1.0f, 1.0f};
           // 1. calculate bitmap position on the screen
           auto bitmapDims = vec2{float(drawable.bitmap.width()), float(drawable.bitmap.height())};
-          auto zoomedDims = bitmapDims * camera.zoom;
-
-          auto screenTopLeft = drawable.top_left - camera.view.top_left;
-          auto zoomedTopLeft = screenTopLeft * camera.zoom;
+          auto scaledBitmapDims = vec2{
+            .x = bitmapDims.x * bitmapScale.x,
+            .y = bitmapDims.y * bitmapScale.y
+          };
+          auto scaledTopLeft = drawable.center - scaledBitmapDims / 2.0f;
+          auto scaledBotRight = drawable.center + scaledBitmapDims / 2.0f;
 
           // 2. check that it is in the screen
-          const auto drawableBounds = Box2{ drawable.top_left, drawable.top_left + bitmapDims };
+          const auto drawableBounds = Box2{ scaledTopLeft, scaledBotRight };
           if (!camera.view.intersects(drawableBounds)) {
             return;
           }
+
+          auto screenDims = scaledBitmapDims * camera.zoom;
+          auto screenTopLeft = (scaledTopLeft - camera.center) * camera.zoom + halfDisplayDims;
 
           // 3. draw
           al_draw_scaled_bitmap(drawable.bitmap.get_raw(),
             0.0f, 0.0f,
             bitmapDims.x, bitmapDims.y,
-            zoomedTopLeft.x, zoomedTopLeft.y,
-            zoomedDims.x, zoomedDims.y, 0);
+            screenTopLeft.x, screenTopLeft.y,
+            screenDims.x, screenDims.y, 0);
         });
       });
     });

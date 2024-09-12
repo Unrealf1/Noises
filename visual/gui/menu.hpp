@@ -51,8 +51,12 @@ public:
     double secondsTaken;
     std::chrono::steady_clock::duration realDuration;
   };
+
   struct EventShowInterpTruePixels : public EmptyEvent {};
   struct EventHideInterpTruePixels : public EmptyEvent {};
+
+  struct EventShowPerlinGradients : public EmptyEvent {};
+  struct EventHidePerlinGradients : public EmptyEvent {};
 
 public:
   Menu(flecs::world&, flecs::entity menu_eid);

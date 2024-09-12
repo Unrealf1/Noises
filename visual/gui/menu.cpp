@@ -54,7 +54,7 @@ static void white_noise_menu(Menu::EventGenerateWhiteNoiseTexture& white_noise_p
   ImGui::SliderFloat("Black probability", &white_noise_params.black_prob, 0.0f, 1.0f);
 }
 
-static void perlin_noise_menu(Menu::EventGeneratePerlinNoiseTexture& perlin_noise_params) {
+static void perlin_noise_menu(flecs::world& ecs, Menu::EventGeneratePerlinNoiseTexture& perlin_noise_params, flecs::entity menu_event_receiver) {
   ImGui::SliderInt2("Texture size", perlin_noise_params.size, 1, 10000, "%d", ImGuiSliderFlags_AlwaysClamp);
   ImGui::SliderInt2("Vector grid size", perlin_noise_params.grid_size, 1, 10000);
   ImGui::SliderFloat2("Grid step", perlin_noise_params.grid_step, 0.1f, 10000.0f);
@@ -64,6 +64,19 @@ static void perlin_noise_menu(Menu::EventGeneratePerlinNoiseTexture& perlin_nois
   ImGui::ListBox("Interpolation", &algo, algorithms, sizeof(algorithms) / sizeof(const char*), 3);
   ImGui::SliderInt("Random seed", &perlin_noise_params.random_seed, 0, 10000);
   perlin_noise_params.interpolation_algorithm = PerlinNoiseParameters::InterpolationAlgorithm(algo);
+  if (ImGui::Button("Show gradients")) {
+    ecs.event<Menu::EventShowPerlinGradients>()
+      .entity(menu_event_receiver)
+      .id<Menu::EventReceiver>()
+      .emit();
+  }
+  ImGui::SameLine();
+  if (ImGui::Button("Clear gradients")) {
+    ecs.event<Menu::EventHidePerlinGradients>()
+      .entity(menu_event_receiver)
+      .id<Menu::EventReceiver>()
+      .emit();
+  }
 }
 
 
@@ -126,7 +139,8 @@ static void native_save_dialog(flecs::world& ecs) {
   if (ImGuiFileDialog::Instance()->Display(fileDialogKey)) {
     if (ImGuiFileDialog::Instance()->IsOk()) {
       ecs.each([&](NoiseTexture& texture){
-        info("saving to \"{}\"", ImGuiFileDialog::Instance()->GetFilePathName());
+        auto filePath = ImGuiFileDialog::Instance()->GetFilePathName();
+        info("saving to \"{}\"", filePath.c_str());
         bool didSave = al_save_bitmap(ImGuiFileDialog::Instance()->GetFilePathName().c_str(), texture.m_draw_bitmap.get_raw());
         if (!didSave) {
           error("Failed to save texture.");
@@ -174,7 +188,7 @@ void Menu::draw(flecs::world& ecs) {
   if (m_noise_idx == int(MenuNoisesIndices::white)) {
     white_noise_menu(m_white_noise_params);
   } else if (m_noise_idx == int(MenuNoisesIndices::perlin)) {
-    perlin_noise_menu(m_perlin_noise_params);
+    perlin_noise_menu(ecs, m_perlin_noise_params, m_event_receiver);
   } else if (m_noise_idx == int(MenuNoisesIndices::interpolation)) {
     interpolation_menu(ecs, m_interpolated_texture_params, m_event_receiver);
   }

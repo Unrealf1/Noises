@@ -48,8 +48,8 @@ TextureGenerationModule::TextureGenerationModule(flecs::world& ecs) {
 
   ecs.observer<NoiseTexture, DrawableBitmap>()
     .event(flecs::OnSet)
-    .each([](NoiseTexture& noise, DrawableBitmap& bitmap){
-      bitmap.top_left = vec2(ivec2{-noise.width() / 2, -noise.height() / 2});
+    .each([](const NoiseTexture&, DrawableBitmap& bitmap){
+      bitmap.center = vec2(0.0f, 0.0f);
     });
 
   ecs.system<NoiseTexture, DrawableBitmap>("Prepare noise texture draw")

@@ -101,6 +101,10 @@ inline ivec2 operator-(ivec2 first, ivec2 second) {
   return copy -= second;
 }
 
+inline ivec2 operator/(ivec2 vec, int scalar) {
+  return {vec.x / scalar, vec.y / scalar};
+}
+
 inline vec2::operator ivec2() const {
   return {int(x), int(y)};
 }

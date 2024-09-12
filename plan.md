@@ -26,9 +26,9 @@
     + Generate texture on button press
     + Generation parameters
     ? See statistics (what statisctics?)
-  - Custom additional visualization per algorithm
-    -   Grid vectors for perlin
-    -   Places of "true" pixels in interpolation
+  + Custom additional visualization per algorithm
+    +   Grid vectors for perlin
+    +   Places of "true" pixels in interpolation
   + Rework Pan with 2d camera in mind
   - Infinite grid
   ? Save texture to a file

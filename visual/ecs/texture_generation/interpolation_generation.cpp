@@ -32,11 +32,11 @@ void init_interpolated_generation_systems(flecs::world& ecs) {
         const int iTexSize = std::max(std::min(info.size[0], info.size[1]) / 10, 3);
         const float texSize = static_cast<float>(iTexSize);
         const float borderSize = std::max(texSize / 10.0f, 1.0f);
-        const vec2 offset = noiseBitmap.top_left - vec2{texSize, texSize} / 2.0f;
+        const vec2 offset = noiseBitmap.center - vec2(ivec2{info.size[0], info.size[1]}) / 2.0f;
         for (int i = 0; i < 4; ++i) {
           for (int j = 0; j < 4; ++j) {
             const float* color = &info.colors[(i + j * 4) * 3];
-            vec2 topLeft = offset + vec2(ivec2{ i * info.size[0] / 3, j * info.size[1] / 3 });
+            vec2 center = offset + vec2(ivec2{ i * info.size[0] / 3, j * info.size[1] / 3 });
             Bitmap bitmap(iTexSize, iTexSize);
 
             // This is needed, so texture is drawn correctly in webgl environment.
@@ -50,7 +50,7 @@ void init_interpolated_generation_systems(flecs::world& ecs) {
 
             al_unlock_bitmap(bitmap.get_raw());
             world.entity()
-              .emplace<DrawableBitmap>(std::move(bitmap), topLeft)
+              .emplace<DrawableBitmap>(std::move(bitmap), center)
               .add<TrueInterpolationPixelVisualization>();
           }
         }

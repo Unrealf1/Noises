@@ -7,12 +7,20 @@
 #include <thread>
 #include <render/noise_texture.hpp>
 #include <render/drawable_bitmap.hpp>
+#include <ecs/util.hpp>
+#include <ecs/render_module.hpp>
 #include <log.hpp>
 
 using namespace std::chrono_literals;
 using real_clock_t = std::chrono::steady_clock;
+using perlin_noise_holder_t = std::unique_ptr<PerlinNoise>;
 static constexpr int s_num_threads = 4;
 
+
+struct PerlinGradientsScaler {
+  float max_zoom = 1.0f;
+};
+struct PerlinGradientBitmap : public Tag {};
 
 struct PerlinNoisePerThreadInfo {
   flecs::entity m_texture;
@@ -26,7 +34,7 @@ struct PerlinNoisePerThreadInfo {
 struct PerlinNoiseGenerationContinuation {
   std::clock_t m_time_spent;
   real_clock_t::duration m_real_time_spent;
-  std::unique_ptr<PerlinNoise> m_noise;
+  PerlinNoise* m_noise;
   std::unique_ptr<std::atomic<size_t>> m_threads_finished;
   std::unique_ptr<std::atomic<bool>> m_need_abort;
   std::vector<std::thread> m_additional_threads;
@@ -60,22 +68,24 @@ void generate_perlin_noise_texture(flecs::world& ecs, const Menu::EventGenerateP
   auto startTime = std::clock();
   auto realStartTime = real_clock_t::now();
 
+  auto noise = std::make_unique<PerlinNoise>(PerlinNoiseParameters{
+    .grid_size_x = event.grid_size[0],
+    .grid_size_y = event.grid_size[1],
+
+    .grid_step_x = event.grid_step[0],
+    .grid_step_y = event.grid_step[1],
+
+    .offset_x = event.offset[0],
+    .offset_y = event.offset[1],
+
+    .normalize_offsets = event.normalize_offsets,
+    .interpolation_algorithm = event.interpolation_algorithm
+  }, eng);
+
   PerlinNoiseGenerationContinuation continuation{
     .m_time_spent = 0,
     .m_real_time_spent = {},
-    .m_noise = std::make_unique<PerlinNoise>(PerlinNoiseParameters{
-      .grid_size_x = event.grid_size[0],
-      .grid_size_y = event.grid_size[1],
-
-      .grid_step_x = event.grid_step[0],
-      .grid_step_y = event.grid_step[1],
-
-      .offset_x = event.offset[0],
-      .offset_y = event.offset[1],
-
-      .normalize_offsets = event.normalize_offsets,
-      .interpolation_algorithm = event.interpolation_algorithm
-    }, eng),
+    .m_noise = noise.get(),
     .m_threads_finished = std::make_unique<std::atomic<size_t>>(0),
     .m_need_abort = std::make_unique<std::atomic<bool>>(false),
     .m_additional_threads = {},
@@ -83,7 +93,7 @@ void generate_perlin_noise_texture(flecs::world& ecs, const Menu::EventGenerateP
       .m_texture = textureEntity,
       .m_next_x = 0,
       .m_until_x = 0,
-      .m_noise = continuation.m_noise.get(),
+      .m_noise = noise.get(),
       .m_threads_finished = continuation.m_threads_finished.get(),
       .m_need_abort = continuation.m_need_abort.get(),
     },
@@ -98,6 +108,7 @@ void generate_perlin_noise_texture(flecs::world& ecs, const Menu::EventGenerateP
   info("main thread will work from {} to {}", continuation.m_main_thread_info.m_next_x, continuation.m_main_thread_info.m_until_x);
   
   ecs.entity().emplace<PerlinNoiseGenerationContinuation>(std::move(continuation));
+  textureEntity.set<perlin_noise_holder_t>(std::move(noise));
 }
 
 
@@ -152,7 +163,7 @@ static void init_perlin_noise_generation_threads(PerlinNoiseGenerationContinuati
       .m_texture = continuation.m_main_thread_info.m_texture,
       .m_next_x = i * continuation.m_columns_per_thread,
       .m_until_x = calc_perlin_thread_finish(i, continuation.m_columns_per_thread, continuation.m_texture_width),
-      .m_noise = continuation.m_noise.get(),
+      .m_noise = continuation.m_noise,
       .m_threads_finished = continuation.m_threads_finished.get(),
       .m_need_abort = continuation.m_need_abort.get()
     };
@@ -197,6 +208,14 @@ static bool continue_perlin_noise_generation(PerlinNoiseGenerationContinuation& 
   return allThreadsFinished;
 }
 
+static void clear_gradient_visualization(flecs::world& ecs) {
+  ecs.each([](flecs::entity eid, PerlinGradientBitmap){
+    eid.destruct();
+  });
+  ecs.each([](flecs::entity eid, PerlinGradientsScaler) {
+    eid.destruct();
+  });
+}
 
 void init_perlin_systems_generation_systems(flecs::world& ecs) {
   ecs.system<PerlinNoiseGenerationContinuation>("Perlin noise generation")
@@ -220,6 +239,94 @@ void init_perlin_systems_generation_systems(flecs::world& ecs) {
         });
         it.entity(entity_index).destruct();
       }
+    });
+
+  ecs.observer<Menu::EventReceiver>()
+    .event<Menu::EventShowPerlinGradients>()
+    .each([](flecs::iter& it, size_t, Menu::EventReceiver){
+      auto world = it.world();
+      clear_gradient_visualization(world);
+      float maxAllowedZoom = 1.0f;
+      world.each([&it, &maxAllowedZoom](const perlin_noise_holder_t& noise, DrawableBitmap& bitmap){
+        const int texSide = 50;
+        const ivec2 texturePixelSize = {texSide, texSide};
+        const vec2 textureCenter = vec2(texturePixelSize) / 2;
+        const float lineLength = float(texSide) / 2.0f;
+        const float circleRadius = float(texSide) / 10.0f;
+        const auto color = al_map_rgb(255, 0, 0);
+        const float width = 3.0f;
+
+        auto& params = noise->m_parameters;
+
+        maxAllowedZoom = std::min(
+          params.grid_step_x / float(texSide) / 2.0f,
+          params.grid_step_y / float(texSide) / 2.0f
+        );
+
+        auto textureSize = vec2(ivec2{
+          .x = bitmap.bitmap.width(),
+          .y = bitmap.bitmap.height()
+        });
+        vec2 offset = bitmap.center - textureSize / 2.0f;
+        for (int i = 0; i < params.grid_size_y; ++i) {
+          for (int j = 0; j < params.grid_size_x; ++j) {
+            const vec2 texturePosition = vec2{
+              .x = float(j) * params.grid_step_x,
+              .y = float(i) * params.grid_step_y,
+            } + offset;
+            const float* gridNodeData = noise->get_grid_node_data(j, i);
+            const vec2 textureDirection = {gridNodeData[0], gridNodeData[1]};
+
+            auto oldFormat = al_get_new_bitmap_format();
+            al_set_new_bitmap_format(ALLEGRO_PIXEL_FORMAT_ANY_WITH_ALPHA);
+            Bitmap bitmap(texturePixelSize.x, texturePixelSize.y);
+            al_set_new_bitmap_format(oldFormat);
+
+            TargetBitmapOverride targetOverride(bitmap.get_raw());
+
+            al_clear_to_color(al_map_rgba(0, 0, 0, 0));
+            al_draw_circle(textureCenter.x, textureCenter.y, circleRadius, color, width);
+
+            vec2 endPoint = textureCenter + textureDirection * lineLength;
+            al_draw_line(textureCenter.x, textureCenter.y,
+                         endPoint.x, endPoint.y,
+                         color, width);
+
+            it.world().entity()
+              .emplace<DrawableBitmap>(std::move(bitmap), texturePosition)
+              .emplace<DrawableBitmapScale>(1.0f, 1.0f)
+              .add<PerlinGradientBitmap>();
+          }
+        }
+      });
+      world.entity().emplace<PerlinGradientsScaler>(maxAllowedZoom);
+  });
+
+  ecs.observer<Menu::EventReceiver>()
+    .event<Menu::EventHidePerlinGradients>()
+    .event<Menu::EventGenerateWhiteNoiseTexture>()
+    .event<Menu::EventGenerateInterpolatedTexture>()
+    .each([](flecs::iter& it, size_t, Menu::EventReceiver){
+      auto world = it.world();
+      clear_gradient_visualization(world);
+    });
+
+  ecs.system<const PerlinGradientsScaler>("Perlin noise gradient visualization")
+    .kind(phase::BeforeRender())
+    .each([](const flecs::iter& it, size_t, const PerlinGradientsScaler scaler) {
+        vec2 textureZoom = {1.0f, 1.0f};
+        //TODO: add cached queries
+        it.world().each([&textureZoom, &scaler](const CameraState& cam_state){
+          float rawZoom = 1.0f / cam_state.zoom;
+          float zoom = std::min(rawZoom, scaler.max_zoom);
+          textureZoom.x = zoom;
+          textureZoom.y = zoom;
+        });
+
+        it.world().each([&textureZoom](DrawableBitmapScale& scale,
+                                       PerlinGradientBitmap) {
+          scale = textureZoom;
+        });
     });
 }
 

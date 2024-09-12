@@ -6,5 +6,10 @@
 
 struct DrawableBitmap {
   Bitmap bitmap;
-  vec2 top_left;
+  vec2 center;
 };
+
+struct DrawableBitmapScale : public vec2 {
+  using vec2::operator=;
+};
+
