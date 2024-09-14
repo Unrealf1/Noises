@@ -39,16 +39,20 @@ void init_interpolated_generation_systems(flecs::world& ecs) {
             vec2 center = offset + vec2(ivec2{ i * info.size[0] / 3, j * info.size[1] / 3 });
             Bitmap bitmap(iTexSize, iTexSize);
 
+#ifdef __EMSCRIPTEN__
             // This is needed, so texture is drawn correctly in webgl environment.
             // Not sure of exact reasons, but probably something to do with FBOs
             // https://www.allegro.cc/manual/5/al_set_target_bitmap
             al_lock_bitmap(bitmap.get_raw(), ALLEGRO_PIXEL_FORMAT_ANY, ALLEGRO_LOCK_WRITEONLY);
+#endif
             TargetBitmapOverride targetOverride(bitmap.get_raw());
 
             al_draw_filled_rectangle(0.0f, 0.0f, texSize, texSize, al_map_rgb_f(color[0], color[1], color[2]));
             al_draw_rectangle(0.0f, 0.0f, texSize, texSize, al_map_rgb(0, 0, 0), borderSize);
 
+#ifdef __EMSCRIPTEN__
             al_unlock_bitmap(bitmap.get_raw());
+#endif
             world.entity()
               .emplace<DrawableBitmap>(std::move(bitmap), center)
               .add<TrueInterpolationPixelVisualization>();

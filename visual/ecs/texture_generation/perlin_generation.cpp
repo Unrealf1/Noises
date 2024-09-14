@@ -282,6 +282,13 @@ void init_perlin_systems_generation_systems(flecs::world& ecs) {
             Bitmap bitmap(texturePixelSize.x, texturePixelSize.y);
             al_set_new_bitmap_format(oldFormat);
 
+#ifdef __EMSCRIPTEN__
+            // This lock is needed, so texture is drawn correctly in webgl environment.
+            // Not sure of exact reasons, but probably something to do with FBOs
+            // https://www.allegro.cc/manual/5/al_set_target_bitmap
+            al_lock_bitmap(bitmap.get_raw(), ALLEGRO_PIXEL_FORMAT_ANY, ALLEGRO_LOCK_READWRITE);
+#endif
+
             TargetBitmapOverride targetOverride(bitmap.get_raw());
 
             al_clear_to_color(al_map_rgba(0, 0, 0, 0));
@@ -291,6 +298,10 @@ void init_perlin_systems_generation_systems(flecs::world& ecs) {
             al_draw_line(textureCenter.x, textureCenter.y,
                          endPoint.x, endPoint.y,
                          color, width);
+
+#ifdef __EMSCRIPTEN__
+            al_unlock_bitmap(bitmap.get_raw());
+#endif
 
             it.world().entity()
               .emplace<DrawableBitmap>(std::move(bitmap), texturePosition)
