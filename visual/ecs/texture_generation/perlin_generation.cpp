@@ -1,14 +1,19 @@
 #include "perlin_generation.hpp"
 
+#include <algorithm>
 #include <atomic>
+#include <cmath>
 #include <ctime>
-#include <perlin.hpp>
+#include <limits>
 #include <memory>
 #include <thread>
+#include <utility>
+#include <perlin.hpp>
 #include <render/noise_texture.hpp>
 #include <render/drawable_bitmap.hpp>
 #include <ecs/util.hpp>
 #include <ecs/render_module.hpp>
+#include <ecs/display_module.hpp>
 #include <log.hpp>
 
 using namespace std::chrono_literals;
@@ -20,7 +25,29 @@ static constexpr int s_num_threads = 4;
 struct PerlinGradientsScaler {
   float max_zoom = 1.0f;
 };
-struct PerlinGradientBitmap : public Tag {};
+
+struct PerlinGradientSprite {
+  Bitmap sprite;
+
+  explicit PerlinGradientSprite(Bitmap&& bitmap)
+    : sprite(std::move(bitmap)) {}
+
+  PerlinGradientSprite(const PerlinGradientSprite&) = delete;
+  PerlinGradientSprite& operator=(const PerlinGradientSprite&) = delete;
+  PerlinGradientSprite(PerlinGradientSprite&&) noexcept = default;
+  PerlinGradientSprite& operator=(PerlinGradientSprite&&) noexcept = default;
+  ~PerlinGradientSprite() = default;
+};
+
+struct PerlinGradientArrow {
+  vec2 position;
+  float angle;
+};
+
+static flecs::query<PerlinGradientSprite> s_perlin_gradient_sprite_query;
+static flecs::query<const PerlinGradientArrow> s_perlin_gradient_arrow_query;
+static flecs::query<const PerlinGradientsScaler> s_perlin_gradient_scaler_query;
+static flecs::query<const DisplayHolder> s_perlin_display_query;
 
 struct PerlinNoisePerThreadInfo {
   flecs::entity m_texture;
@@ -209,12 +236,44 @@ static bool continue_perlin_noise_generation(PerlinNoiseGenerationContinuation& 
 }
 
 static void clear_gradient_visualization(flecs::world& ecs) {
-  ecs.each([](flecs::entity eid, PerlinGradientBitmap){
+  ecs.each([](flecs::entity eid, PerlinGradientArrow&){
+    eid.destruct();
+  });
+  ecs.each([](flecs::entity eid, PerlinGradientSprite&){
     eid.destruct();
   });
   ecs.each([](flecs::entity eid, PerlinGradientsScaler) {
     eid.destruct();
   });
+}
+
+static Bitmap create_gradient_arrow_sprite(int texSide, float lineLength, float circleRadius, ALLEGRO_COLOR color, float width) {
+  auto oldFormat = al_get_new_bitmap_format();
+  al_set_new_bitmap_format(ALLEGRO_PIXEL_FORMAT_ANY_WITH_ALPHA);
+  Bitmap sprite(texSide, texSide);
+  al_set_new_bitmap_format(oldFormat);
+
+#ifdef __EMSCRIPTEN__
+  // This lock is needed, so texture is drawn correctly in webgl environment.
+  // Not sure of exact reasons, but probably something to do with FBOs
+  // https://www.allegro.cc/manual/5/al_set_target_bitmap
+  al_lock_bitmap(sprite.get_raw(), ALLEGRO_PIXEL_FORMAT_ANY, ALLEGRO_LOCK_READWRITE);
+#endif
+
+  TargetBitmapOverride targetOverride(sprite.get_raw());
+  al_clear_to_color(al_map_rgba(0, 0, 0, 0));
+  const vec2 textureCenter = vec2{float(texSide) / 2.0f, float(texSide) / 2.0f};
+  al_draw_circle(textureCenter.x, textureCenter.y, circleRadius, color, width);
+  const vec2 endPoint = textureCenter + vec2{lineLength, 0.0f};
+  al_draw_line(textureCenter.x, textureCenter.y,
+               endPoint.x, endPoint.y,
+               color, width);
+
+#ifdef __EMSCRIPTEN__
+  al_unlock_bitmap(sprite.get_raw());
+#endif
+
+  return sprite;
 }
 
 void init_perlin_systems_generation_systems(flecs::world& ecs) {
@@ -241,6 +300,11 @@ void init_perlin_systems_generation_systems(flecs::world& ecs) {
       }
     });
 
+  s_perlin_gradient_sprite_query = ecs.query<PerlinGradientSprite>();
+  s_perlin_gradient_arrow_query = ecs.query<const PerlinGradientArrow>();
+  s_perlin_gradient_scaler_query = ecs.query<const PerlinGradientsScaler>();
+  s_perlin_display_query = ecs.query<const DisplayHolder>();
+
   ecs.observer<Menu::EventReceiver>()
     .event<Menu::EventShowPerlinGradients>()
     .each([](flecs::iter& it, size_t, Menu::EventReceiver){
@@ -249,19 +313,22 @@ void init_perlin_systems_generation_systems(flecs::world& ecs) {
       float maxAllowedZoom = 1.0f;
       world.each([&it, &maxAllowedZoom](const perlin_noise_holder_t& noise, DrawableBitmap& bitmap){
         const int texSide = 50;
-        const ivec2 texturePixelSize = {texSide, texSide};
-        const vec2 textureCenter = vec2(texturePixelSize) / 2;
         const float lineLength = float(texSide) / 2.0f;
         const float circleRadius = float(texSide) / 10.0f;
         const auto color = al_map_rgb(255, 0, 0);
         const float width = 3.0f;
 
         auto& params = noise->m_parameters;
-
+	if (params.grid_size_y * params.grid_size_x <= 0) {
+          return;
+	}
         maxAllowedZoom = std::min(
           params.grid_step_x / float(texSide) / 2.0f,
           params.grid_step_y / float(texSide) / 2.0f
         );
+
+        auto spriteEntity = it.world().entity();
+        spriteEntity.emplace<PerlinGradientSprite>(create_gradient_arrow_sprite(texSide, lineLength, circleRadius, color, width));
 
         auto textureSize = vec2(ivec2{
           .x = bitmap.bitmap.width(),
@@ -275,38 +342,18 @@ void init_perlin_systems_generation_systems(flecs::world& ecs) {
               .y = float(i) * params.grid_step_y,
             } + offset;
             const float* gridNodeData = noise->get_grid_node_data(j, i);
-            const vec2 textureDirection = {gridNodeData[0], gridNodeData[1]};
+            vec2 textureDirection = {gridNodeData[0], gridNodeData[1]};
+            const float directionLength = textureDirection.length();
+            if (directionLength <= std::numeric_limits<float>::epsilon()) {
+              textureDirection = {1.0f, 0.0f};
+            } else {
+              textureDirection /= directionLength;
+            }
 
-            auto oldFormat = al_get_new_bitmap_format();
-            al_set_new_bitmap_format(ALLEGRO_PIXEL_FORMAT_ANY_WITH_ALPHA);
-            Bitmap bitmap(texturePixelSize.x, texturePixelSize.y);
-            al_set_new_bitmap_format(oldFormat);
-
-#ifdef __EMSCRIPTEN__
-            // This lock is needed, so texture is drawn correctly in webgl environment.
-            // Not sure of exact reasons, but probably something to do with FBOs
-            // https://www.allegro.cc/manual/5/al_set_target_bitmap
-            al_lock_bitmap(bitmap.get_raw(), ALLEGRO_PIXEL_FORMAT_ANY, ALLEGRO_LOCK_READWRITE);
-#endif
-
-            TargetBitmapOverride targetOverride(bitmap.get_raw());
-
-            al_clear_to_color(al_map_rgba(0, 0, 0, 0));
-            al_draw_circle(textureCenter.x, textureCenter.y, circleRadius, color, width);
-
-            vec2 endPoint = textureCenter + textureDirection * lineLength;
-            al_draw_line(textureCenter.x, textureCenter.y,
-                         endPoint.x, endPoint.y,
-                         color, width);
-
-#ifdef __EMSCRIPTEN__
-            al_unlock_bitmap(bitmap.get_raw());
-#endif
-
-            it.world().entity()
-              .emplace<DrawableBitmap>(std::move(bitmap), texturePosition)
-              .emplace<DrawableBitmapScale>(1.0f, 1.0f)
-              .add<PerlinGradientBitmap>();
+            it.world().entity().emplace<PerlinGradientArrow>(PerlinGradientArrow{
+              .position = texturePosition,
+              .angle = std::atan2(textureDirection.y, textureDirection.x),
+            });
           }
         }
       });
@@ -322,22 +369,61 @@ void init_perlin_systems_generation_systems(flecs::world& ecs) {
       clear_gradient_visualization(world);
     });
 
-  ecs.system<const PerlinGradientsScaler>("Perlin noise gradient visualization")
-    .kind(phase::BeforeRender())
-    .each([](const flecs::iter& it, size_t, const PerlinGradientsScaler scaler) {
-        vec2 textureZoom = {1.0f, 1.0f};
-        //TODO: add cached queries
-        it.world().each([&textureZoom, &scaler](const CameraState& cam_state){
-          float rawZoom = 1.0f / cam_state.zoom;
-          float zoom = std::min(rawZoom, scaler.max_zoom);
-          textureZoom.x = zoom;
-          textureZoom.y = zoom;
-        });
+  ecs.system<CameraState>("Render Perlin gradient arrows")
+    .kind(phase::Render())
+    .each([](const CameraState& camera) {
+      s_perlin_gradient_scaler_query.each([&](const PerlinGradientsScaler& scaler){
+        const float textureZoom = std::min(1.0f / camera.zoom, scaler.max_zoom);
+        const float screenScale = textureZoom * camera.zoom;
+        if (textureZoom <= 0.0f || screenScale <= 0.0f) {
+          return;
+        }
 
-        it.world().each([&textureZoom](DrawableBitmapScale& scale,
-                                       PerlinGradientBitmap) {
-          scale = textureZoom;
+        Bitmap* spriteBitmap = nullptr;
+        s_perlin_gradient_sprite_query.each([&](PerlinGradientSprite& sprite){
+          if (spriteBitmap == nullptr) {
+            spriteBitmap = &sprite.sprite;
+          }
         });
+        if (spriteBitmap == nullptr) {
+          return;
+        }
+
+        const float spriteWidth = float(spriteBitmap->width());
+        const float spriteHeight = float(spriteBitmap->height());
+        const vec2 halfSpriteWorld = vec2{
+          spriteWidth * textureZoom / 2.0f,
+          spriteHeight * textureZoom / 2.0f
+        };
+
+        const vec2 halfDisplayDims = vec2(camera.display_dimentions) / 2.0f;
+        s_perlin_display_query.each([&](const DisplayHolder& display){
+          auto* displayBitmap = al_get_backbuffer(display.display);
+          TargetBitmapOverride targetOverride(displayBitmap);
+
+          al_hold_bitmap_drawing(true);
+          s_perlin_gradient_arrow_query.each([&](const PerlinGradientArrow& arrow){
+            const Box2 arrowBounds{
+              .top_left = arrow.position - halfSpriteWorld,
+              .bot_right = arrow.position + halfSpriteWorld
+            };
+            if (!camera.view.intersects(arrowBounds)) {
+              return;
+            }
+
+            const vec2 screenPos = (arrow.position - camera.center) * camera.zoom + halfDisplayDims;
+            al_draw_scaled_rotated_bitmap(
+              spriteBitmap->get_raw(),
+              spriteWidth / 2.0f,
+              spriteHeight / 2.0f,
+              screenPos.x, screenPos.y,
+              screenScale, screenScale,
+              arrow.angle,
+              0);
+          });
+          al_hold_bitmap_drawing(false);
+        });
+      });
     });
 }
 
@@ -352,4 +438,3 @@ void clear_perlin_noise_continuation(flecs::world& ecs) {
     entity.destruct();
   });
 }
-
