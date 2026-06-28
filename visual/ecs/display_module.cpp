@@ -13,9 +13,10 @@
 
 static bool s_emscripten_display_size_changed = false;
 
-static EM_BOOL on_web_display_size_changed(int /*event_type*/,const EmscriptenUiEvent */*event*/, void */* user_data */)
+static EM_BOOL on_web_display_size_changed(int /*event_type*/,const EmscriptenUiEvent */*event*/, void* /*user_data*/)
 {
   s_emscripten_display_size_changed = true;
+
   warn("Display size change is detected, but not yet supported");
   return 0;
 }
@@ -145,7 +146,7 @@ DisplayModule::DisplayModule(flecs::world& ecs) {
     w = int(float(monitorInfo.x2 - monitorInfo.x1) * 0.7f);
     h = int(float(monitorInfo.y2 - monitorInfo.x1) * 0.7f);
   }
-  auto display = al_create_display(w, h);
+  auto* display = al_create_display(w, h);
 #endif
 
   ImGui_ImplAllegro5_Init(display);

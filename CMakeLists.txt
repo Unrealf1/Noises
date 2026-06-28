@@ -17,7 +17,7 @@ if (WEB_BUILD)
     add_compile_definitions("__EMSCRIPTEN__")
     set(COMMON_WEB_BUILD_FLAGS "-pthread -msimd128 --use-port=sdl2 --use-port=sdl2_image:formats=bmp,png,xpm,jpg")
     # TODO: 10 threads is an arbitrary number, better consider hardware in the future
-    set(WEB_LINKER_FLAGS "-pthread -sASSERTIONS -sALLOW_MEMORY_GROWTH -sTOTAL_STACK=5242880 -sFULL_ES2 -sPTHREAD_POOL_SIZE=10")
+    set(WEB_LINKER_FLAGS "-pthread -sASSERTIONS -sALLOW_MEMORY_GROWTH -sTOTAL_STACK=5242880 -sFULL_ES2 -sFULL_ES3 -sPTHREAD_POOL_SIZE=10")
 
     SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${COMMON_WEB_BUILD_FLAGS}")
     SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${COMMON_WEB_BUILD_FLAGS}")

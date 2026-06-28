@@ -193,7 +193,9 @@ void Menu::draw(flecs::world& ecs) {
     interpolation_menu(ecs, m_interpolated_texture_params, m_event_receiver);
   }
 
-  if (ImGui::Button("Generate")) {
+  static bool initialGenerationComplete = false;
+  if (ImGui::Button("Generate") || !initialGenerationComplete) {
+    initialGenerationComplete = true;
     if (m_noise_idx == int(MenuNoisesIndices::white)) {
       ecs.event<Menu::EventGenerateWhiteNoiseTexture>()
         .ctx(m_white_noise_params)

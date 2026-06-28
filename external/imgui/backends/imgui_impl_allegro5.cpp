@@ -260,6 +260,7 @@ bool ImGui_ImplAllegro5_CreateDeviceObjects()
     io.Fonts->SetTexID((ImTextureID)(intptr_t)cloned_img);
     bd->Texture = cloned_img;
 
+
     // Create an invisible mouse cursor
     // Because al_hide_mouse_cursor() seems to mess up with the actual inputs..
     ALLEGRO_BITMAP* mouse_cursor = al_create_bitmap(8, 8);

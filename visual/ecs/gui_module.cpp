@@ -2,12 +2,14 @@
 
 #include <allegro_util.hpp>
 #include <ecs/render_module.hpp>
+#include <ecs/display_module.hpp>
 #include <gui/gui.hpp>
 #include <gui/menu.hpp>
 #include <imgui_inc.hpp>
 
 
 static flecs::entity s_RenderGui;
+static flecs::query<DisplayHolder> s_display_query;
 
 namespace phase {
   flecs::entity RenderGui() {
@@ -30,6 +32,8 @@ GuiModule::GuiModule(flecs::world& ecs) {
   phase::AfterRender()
     .depends_on(phase::RenderGui());
 
+  s_display_query = ecs.query<DisplayHolder>();
+
   ecs.system("start gui frame")
     .kind(phase::RenderGui())
     .run([](flecs::iter&){
@@ -47,7 +51,10 @@ GuiModule::GuiModule(flecs::world& ecs) {
     .kind(phase::RenderGui())
     .run([](flecs::iter&){
       ImGui::Render();
-      ImGui_ImplAllegro5_RenderDrawData(ImGui::GetDrawData());
+      s_display_query.each([](const DisplayHolder& display){
+        auto targetOverride = TargetBitmapOverride(al_get_backbuffer(display.display));
+        ImGui_ImplAllegro5_RenderDrawData(ImGui::GetDrawData());
+      });
     });
 
   auto menu = ecs.entity();

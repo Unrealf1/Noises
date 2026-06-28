@@ -30,4 +30,3 @@ namespace render {
     al_flip_display();
   }
 }
-
