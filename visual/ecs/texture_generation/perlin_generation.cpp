@@ -121,12 +121,14 @@ void generate_perlin_noise_texture(flecs::world& ecs, const Menu::EventGenerateP
       .m_next_x = 0,
       .m_until_x = 0,
       .m_noise = noise.get(),
-      .m_threads_finished = continuation.m_threads_finished.get(),
-      .m_need_abort = continuation.m_need_abort.get(),
+      .m_threads_finished = nullptr,
+      .m_need_abort = nullptr,
     },
     .m_columns_per_thread = event.size[0] / s_num_threads,
     .m_texture_width = event.size[0],
   };
+  continuation.m_main_thread_info.m_threads_finished = continuation.m_threads_finished.get();
+  continuation.m_main_thread_info.m_need_abort = continuation.m_need_abort.get();
 
   continuation.m_time_spent = std::clock() - startTime;
   continuation.m_real_time_spent = real_clock_t::now() - realStartTime;
@@ -140,7 +142,7 @@ void generate_perlin_noise_texture(flecs::world& ecs, const Menu::EventGenerateP
 
 
 static void do_perlin_generation(PerlinNoisePerThreadInfo& info, auto continueCallback) {
-  NoiseTexture* ptr = info.m_texture.get_mut<NoiseTexture>();
+  NoiseTexture* ptr = info.m_texture.try_get_mut<NoiseTexture>();
   if (ptr == nullptr) {
     return;
   }
@@ -164,13 +166,13 @@ static void do_perlin_generation(PerlinNoisePerThreadInfo& info, auto continueCa
 
 static void additional_thread_perlin_func(PerlinNoisePerThreadInfo thread_info) {
   while (thread_info.m_next_x < thread_info.m_until_x) {
-    auto* texture = thread_info.m_texture.get<NoiseTexture>();
-    texture->m_prepearing_for_draw->wait(true);
+    const auto& texture = thread_info.m_texture.get<NoiseTexture>();
+    texture.m_prepearing_for_draw->wait(true);
 
     bool needAbort = false;
     do_perlin_generation(thread_info, [&] {
       needAbort = thread_info.m_need_abort->load();
-      return !needAbort && !(texture->m_prepearing_for_draw->load());
+      return !needAbort && !(texture.m_prepearing_for_draw->load());
     });
     if (needAbort) {
       info("thread aborted ({}/{})", thread_info.m_next_x, thread_info.m_until_x);
@@ -203,7 +205,7 @@ static bool continue_perlin_noise_generation(PerlinNoiseGenerationContinuation& 
   auto startTime = std::clock(); // processor time
   auto startRealTime = real_clock_t::now();
 
-  NoiseTexture& texture = *continuation.m_main_thread_info.m_texture.get_mut<NoiseTexture>();
+  NoiseTexture& texture = continuation.m_main_thread_info.m_texture.get_mut<NoiseTexture>();
   texture.mark_modified();
   
   if (continuation.m_main_thread_info.m_next_x == continuation.m_main_thread_info.m_until_x) {

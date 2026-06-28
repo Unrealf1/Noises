@@ -32,7 +32,7 @@ GuiModule::GuiModule(flecs::world& ecs) {
 
   ecs.system("start gui frame")
     .kind(phase::RenderGui())
-    .iter([](flecs::iter&){
+    .run([](flecs::iter&){
       ImGui_ImplAllegro5_NewFrame();
       ImGui::NewFrame();
     });
@@ -45,7 +45,7 @@ GuiModule::GuiModule(flecs::world& ecs) {
 
   ecs.system("finish gui frame")
     .kind(phase::RenderGui())
-    .iter([](flecs::iter&){
+    .run([](flecs::iter&){
       ImGui::Render();
       ImGui_ImplAllegro5_RenderDrawData(ImGui::GetDrawData());
     });

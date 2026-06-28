@@ -11,6 +11,7 @@ SET(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 include(cmake/CPM.cmake)
 
 set(BUILD_DEPENDANT_LIBS "")
+
 if (WEB_BUILD)
     include("${WEB_BUILD}/cmake/Modules/TestBigEndian.cmake")
     add_compile_definitions("__EMSCRIPTEN__")
@@ -23,12 +24,10 @@ if (WEB_BUILD)
     SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${WEB_LINKER_FLAGS}")
     SET(ALLEGRO_SDL_OPTION "ON")
 
-    find_package(SDL2 REQUIRED)
-    include("${SDL2_DIR}/sdl2-config.cmake")
     file(GLOB HTML "${CMAKE_CURRENT_SOURCE_DIR}/html/*")
     file(COPY ${HTML} DESTINATION ${CMAKE_BINARY_DIR}/bin/)
-    set(SDL2_INCLUDE_DIR ${SDL2_SOURCE_DIR}/include)
-    set(SDL2_LIBRARY ${SDL2_LIBRARIES})
+    set(SDL2_INCLUDE_DIR "${WEB_BUILD}/cache/sysroot/include/SDL2")
+    set(SDL2_LIBRARY "-sUSE_SDL=2")
     # this is a hack to make sure that libs think that pthread is there
     # there's probably a way to make them legitemately verify that
     set(CMAKE_HAVE_LIBC_PTHREAD 1)
@@ -96,9 +95,9 @@ CPMAddPackage(
 
 CPMAddPackage(
   NAME flecs
-  VERSION 3.2.12
+  VERSION 4.1.5
   GITHUB_REPOSITORY SanderMertens/flecs
-  GIT_TAG v3.2.12
+  GIT_TAG v4.1.5
   OPTIONS
   "FLECS_SHARED OFF"
 )

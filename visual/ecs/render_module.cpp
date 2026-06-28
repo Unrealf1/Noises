@@ -50,7 +50,7 @@ RenderModule::RenderModule(flecs::world& ecs) {
   // 2. create systems for frame start and end
   ecs.system("start_render")
     .kind(phase::BeforeRender())
-    .iter([](flecs::iter&) {
+    .run([](flecs::iter&) {
       render::start_frame();
     });
 
@@ -63,7 +63,7 @@ RenderModule::RenderModule(flecs::world& ecs) {
         const vec2 halfDisplayDims = vec2(camera.display_dimentions) / 2.0f;
 
         s_drawable_bitmap_query.each([&camera, halfDisplayDims](flecs::entity eid, DrawableBitmap& drawable){
-          const auto scale_ptr = eid.get<DrawableBitmapScale>();
+          const auto scale_ptr = eid.try_get<DrawableBitmapScale>();
           const vec2 bitmapScale = scale_ptr != nullptr ? vec2(*scale_ptr) : vec2{1.0f, 1.0f};
           // 1. calculate bitmap position on the screen
           auto bitmapDims = vec2{float(drawable.bitmap.width()), float(drawable.bitmap.height())};
@@ -95,7 +95,7 @@ RenderModule::RenderModule(flecs::world& ecs) {
 
   ecs.system("finish_render")
     .kind(phase::AfterRender())
-    .iter([](flecs::iter&) {
+    .run([](flecs::iter&) {
       render::finish_frame();
     });
 }

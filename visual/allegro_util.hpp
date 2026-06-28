@@ -1,5 +1,6 @@
 #pragma once
 
+#include <string>
 #include <stdexcept>
 #include <functional>
 #include <allegro5/allegro5.h>
