@@ -2,4 +2,4 @@ Main reason for this repository existing is for me to fully understand and imple
 
 I would like to focus on perfomance as well as clarity. When choosing between insignificant perfomance boost and loss of clarity I will choose clarity
 
-You can try this online! https://unrealf1.github.io/other/noises/noises.html
+You can try this online! https://bukreev.org/other/noises/noises.html
