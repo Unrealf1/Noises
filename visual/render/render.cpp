@@ -2,9 +2,7 @@
 #include "imgui_inc.hpp"
 
 #include <allegro_util.hpp>
-#ifndef __EMSCRIPTEN__
 #include <allegro5/allegro_image.h>
-#endif
 
 
 namespace render {
@@ -13,9 +11,7 @@ namespace render {
     al_install_keyboard();
     al_install_mouse();
     al_init_primitives_addon();
-#ifndef __EMSCRIPTEN__
     al_init_image_addon();
-#endif
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
   }

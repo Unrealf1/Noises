@@ -15,7 +15,7 @@ set(BUILD_DEPENDANT_LIBS "")
 if (WEB_BUILD)
     include("${WEB_BUILD}/cmake/Modules/TestBigEndian.cmake")
     add_compile_definitions("__EMSCRIPTEN__")
-    set(COMMON_WEB_BUILD_FLAGS "-pthread -msimd128 --use-port=sdl2 --use-port=sdl2_image:formats=bmp,png,xpm,jpg")
+    set(COMMON_WEB_BUILD_FLAGS "-pthread -msimd128 --use-port=sdl2 --use-port=sdl2_image:formats=bmp,png,xpm,jpg -s EXPORTED_RUNTIME_METHODS=['FS','HEAPU8']")
     # TODO: 10 threads is an arbitrary number, better consider hardware in the future
     set(WEB_LINKER_FLAGS "-pthread -sASSERTIONS -sALLOW_MEMORY_GROWTH -sTOTAL_STACK=5242880 -sFULL_ES2 -sFULL_ES3 -sPTHREAD_POOL_SIZE=10")
 
@@ -121,15 +121,8 @@ target_compile_definitions(flecs_static PUBLIC
 get_target_property(allegro_includes allegro INCLUDE_DIRECTORIES)
 
 
-if (WEB_BUILD)
-  # image addon doesn't compile in web build
-  # thankfully, it is not yet needed
-  set(ALLEGRO_USE_ADDONS font color primitives)
-  set(ALLEGRO_USE_ADDONS_FULL_NAMES allegro_font allegro_color allegro_primitives)
-else()
-  set(ALLEGRO_USE_ADDONS font image color primitives)
-  set(ALLEGRO_USE_ADDONS_FULL_NAMES allegro_font allegro_image allegro_color allegro_primitives)
-endif()
+set(ALLEGRO_USE_ADDONS font image color primitives)
+set(ALLEGRO_USE_ADDONS_FULL_NAMES allegro_font allegro_image allegro_color allegro_primitives)
 
 foreach(ADDON ${ALLEGRO_USE_ADDONS})
     target_include_directories("allegro_${ADDON}" INTERFACE "${allegro5_SOURCE_DIR}/addons/${ADDON}")

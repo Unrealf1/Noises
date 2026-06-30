@@ -8,6 +8,9 @@
 #include <log.hpp>
 #ifndef __EMSCRIPTEN__
 #include <ImGuiFileDialog.h>
+#else
+#include <emscripten.h>
+#include <memory>
 #endif
 
 
@@ -151,7 +154,62 @@ static void native_save_dialog(flecs::world& ecs) {
     ImGuiFileDialog::Instance()->Close();
   }
 }
-#endif //__EMSCRIPTEN__
+#else // __EMSCRIPTEN__
+static void web_save_button(flecs::world& ecs) {
+  if (ImGui::Button("Save")) {
+    ecs.each([&](NoiseTexture& texture){
+      int w = texture.width();
+      int h = texture.height();
+      auto pixels = std::make_unique<uint8_t[]>(w * h * 4);
+
+      // al_save_bitmap fails in web for some reason, so copy pixels into a raw buffer
+      // Read from already-locked memory bitmap
+      ALLEGRO_LOCKED_REGION* region = texture.m_locked_memory_bitmap;
+      if (region != nullptr && region->format == ALLEGRO_PIXEL_FORMAT_ABGR_8888_LE) {
+        for (int y = 0; y < h; ++y) {
+          auto* src = (uint8_t*)region->data + y * region->pitch;
+          auto* dst = &pixels[y * w * 4];
+          // ABGR_8888_LE on little-endian = RGBA bytes
+          memcpy(dst, src, w * 4);
+        }
+      } else { // Not a convenient format, copy pixel by pixel
+        auto bitmapRaw = texture.m_memory_bitmap.get_raw();
+        for (int y = 0; y < h; ++y) {
+          for (int x = 0; x < w; ++x) {
+            ALLEGRO_COLOR c = al_get_pixel(bitmapRaw, x, y);
+            unsigned char r, g, b, a;
+            al_unmap_rgba(c, &r, &g, &b, &a);
+            auto* dst = pixels.get() + (y * w + x) * 4;
+            dst[0] = r;
+            dst[1] = g;
+            dst[2] = b;
+            dst[3] = a;
+          }
+        }
+      }
+
+      EM_ASM({
+        var w = $0;
+        var h = $1;
+        var pixels = new Uint8Array(Module.HEAPU8.buffer, $2, w * h * 4);
+        var c = document.createElement('canvas');
+        c.width = w; c.height = h;
+        var ctx = c.getContext('2d');
+        var img = ctx.createImageData(w, h);
+        img.data.set(pixels);
+        ctx.putImageData(img, 0, 0);
+        var a = document.createElement('a');
+        a.href = c.toDataURL('image/png');
+        a.download = 'generated.png';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }, w, h, pixels.get());
+    });
+  }
+}
+
+#endif // __EMSCRIPTEN__
 
 void Menu::draw(flecs::world& ecs) {
   general_info();
@@ -223,9 +281,11 @@ void Menu::draw(flecs::world& ecs) {
     }
   }
 
-#ifndef __EMSCRIPTEN__
   ImGui::SameLine();
+#ifndef __EMSCRIPTEN__
   native_save_dialog(ecs);
+#else
+  web_save_button(ecs);
 #endif
 
   // TODO: show statistics? Like distribution of colors?
