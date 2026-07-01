@@ -2,8 +2,7 @@
 
 
 NoiseTexture::NoiseTexture(int width, int height)
-  : m_draw_bitmap(width, height)
-  , m_memory_bitmap(width, height, ALLEGRO_MEMORY_BITMAP)
+  : m_memory_bitmap(width, height, ALLEGRO_MEMORY_BITMAP)
   , m_memory_bitmap_mutex(std::make_unique<std::shared_mutex>())
   , m_prepearing_for_draw(std::make_unique<std::atomic<bool>>(true)) {
     auto scopeedTargetOverride = scoped_write_to_memory_bitmap();

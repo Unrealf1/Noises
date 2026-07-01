@@ -4,6 +4,7 @@
 #include <ecs/util.hpp>
 #include <imgui_inc.hpp>
 #include <render/noise_texture.hpp>
+#include <render/drawable_bitmap.hpp>
 #include <format>
 #include <log.hpp>
 #ifndef __EMSCRIPTEN__
@@ -143,15 +144,16 @@ static void interpolation_menu(flecs::world& ecs, Menu::EventGenerateInterpolate
 static void native_save_dialog(flecs::world& ecs) {
   const char* const fileDialogKey = "draw_save_dialog_key";
   if (ImGui::Button("Save")) {
-    ImGuiFileDialog::Instance()->OpenDialog(fileDialogKey, "Choose file", ".png,.jpg,.webp", ".", 1, nullptr, ImGuiFileDialogFlags_Modal | ImGuiFileDialogFlags_ConfirmOverwrite);
+    ImGuiFileDialog::Instance()->OpenDialog(fileDialogKey, "Choose file", ".png", ".", 1, nullptr, ImGuiFileDialogFlags_Modal | ImGuiFileDialogFlags_ConfirmOverwrite);
   }
 
   if (ImGuiFileDialog::Instance()->Display(fileDialogKey)) {
     if (ImGuiFileDialog::Instance()->IsOk()) {
-      ecs.each([&](NoiseTexture& texture){
+      ecs.each([&](NoiseTexture& texture, DrawableBitmap& drawable){
+        (void)texture; // Required to find the correct entity, but not needed for saving
         auto filePath = ImGuiFileDialog::Instance()->GetFilePathName();
         info("saving to \"{}\"", filePath.c_str());
-        bool didSave = al_save_bitmap(ImGuiFileDialog::Instance()->GetFilePathName().c_str(), texture.m_draw_bitmap.get_raw());
+        bool didSave = al_save_bitmap(ImGuiFileDialog::Instance()->GetFilePathName().c_str(), drawable.bitmap.get_raw());
         if (!didSave) {
           error("Failed to save texture.");
         }

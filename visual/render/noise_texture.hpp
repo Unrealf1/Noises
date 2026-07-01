@@ -21,7 +21,6 @@ struct NoiseTexture {
 
   void prepare_for_draw(Bitmap& draw_on);
 
-  Bitmap m_draw_bitmap;
   Bitmap m_memory_bitmap;
 
   ALLEGRO_LOCKED_REGION* m_locked_memory_bitmap;
