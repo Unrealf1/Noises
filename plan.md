@@ -34,6 +34,7 @@
 
 
 Next steps:
+-   In perlin automatically adjust grid size and grid step to match resulting texture size
 -   Simplex noise, more noies(see top section)
 -   Show value/color distribution via bar graph
     Useful link to check out: https://github.com/epezent/implot
