@@ -1,12 +1,12 @@
 * Algorithms
-  - White noise
+  + White noise
   + Perlin noise
       + bicubic interpolation
       + make generic interpolation implementations and use one in perlin
   - Simplex noise
   - Other colored noises, i.e. brown
 
-* Visualization
++ Visualization
   + Render loop
     + init/uninit render
     + start frame / end frame
@@ -25,19 +25,25 @@
     + display basic information abour current texture and inspector state
     + Generate texture on button press
     + Generation parameters
-    ? See statistics (what statisctics?)
   + Custom additional visualization per algorithm
     +   Grid vectors for perlin
     +   Places of "true" pixels in interpolation
   + Rework Pan with 2d camera in mind
-  - Infinite grid
-  ? Save texture to a file
+  + Save texture to a file
+  + Create texture with multiple threads
 
+
+Next steps:
+-   Simplex noise, more noies(see top section)
+-   Show value/color distribution via bar graph
+    Useful link to check out: https://github.com/epezent/implot
+
+Maybe/Maybe not
+  - Infinite grid
   - Refactor generation interaction with ui
     -   Ui should update its values of cur tex size from on appear event, not set this by hand
     -   Sending generation time by event might be excessive (might be useful for multithread though)
     -   Delete old texture on appearence of a new one?
-  + Create texture with multiple threads
   - Look into using plain array instead of memory allegro texture
   - Rework input
     Display has system events as child/sends events to the display entity
