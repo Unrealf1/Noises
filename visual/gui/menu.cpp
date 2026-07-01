@@ -65,6 +65,13 @@ static void perlin_noise_menu(flecs::world& ecs, Menu::EventGeneratePerlinNoiseT
   const char* algorithms[] = {"bilinear", "bicubic (derivative from grid)", "bicubic (zero derivative)", "nearest neighboor"};
   int algo = int(perlin_noise_params.interpolation_algorithm);
   ImGui::ListBox("Interpolation", &algo, algorithms, sizeof(algorithms) / sizeof(const char*), 3);
+
+  ImGui::Text("Colors:");
+  ImGui::SameLine();
+  ImGui::ColorEdit3("0.0", perlin_noise_params.color0, ImGuiColorEditFlags_NoInputs);
+  ImGui::SameLine();
+  ImGui::ColorEdit3("1.0", perlin_noise_params.color1, ImGuiColorEditFlags_NoInputs);
+
   ImGui::SliderInt("Random seed", &perlin_noise_params.random_seed, 0, 10000);
   perlin_noise_params.interpolation_algorithm = PerlinNoiseParameters::InterpolationAlgorithm(algo);
   if (ImGui::Button("Show gradients")) {
@@ -243,6 +250,7 @@ void Menu::draw(flecs::world& ecs) {
 
   // Generate new texture
   ImGui::ListBox("Noise type", &(m_noise_idx), s_noises.data(), int(s_noises.size()), 3);
+  ImGui::Separator();
   if (m_noise_idx == int(MenuNoisesIndices::white)) {
     white_noise_menu(m_white_noise_params);
   } else if (m_noise_idx == int(MenuNoisesIndices::perlin)) {

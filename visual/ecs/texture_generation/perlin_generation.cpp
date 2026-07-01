@@ -1,6 +1,7 @@
 #include "perlin_generation.hpp"
 
 #include <algorithm>
+#include <array>
 #include <atomic>
 #include <cmath>
 #include <ctime>
@@ -9,6 +10,7 @@
 #include <thread>
 #include <utility>
 #include <perlin.hpp>
+#include <interpolation.hpp>
 #include <render/noise_texture.hpp>
 #include <render/drawable_bitmap.hpp>
 #include <ecs/util.hpp>
@@ -49,6 +51,11 @@ static flecs::query<const PerlinGradientArrow> s_perlin_gradient_arrow_query;
 static flecs::query<const PerlinGradientsScaler> s_perlin_gradient_scaler_query;
 static flecs::query<const DisplayHolder> s_perlin_display_query;
 
+struct ConstSharedContinuationData {
+  std::array<float, 3> color0;
+  std::array<float, 3> color1;
+};
+
 struct PerlinNoisePerThreadInfo {
   flecs::entity m_texture;
   int m_next_x;
@@ -56,9 +63,11 @@ struct PerlinNoisePerThreadInfo {
   const PerlinNoise* m_noise;
   std::atomic<size_t>* m_threads_finished;
   std::atomic<bool>* m_need_abort;
+  const ConstSharedContinuationData* m_const_shared_data_ptr;
 };
 
 struct PerlinNoiseGenerationContinuation {
+  std::unique_ptr<ConstSharedContinuationData> m_const_shared_data;
   std::clock_t m_time_spent;
   real_clock_t::duration m_real_time_spent;
   PerlinNoise* m_noise;
@@ -110,6 +119,10 @@ void generate_perlin_noise_texture(flecs::world& ecs, const Menu::EventGenerateP
   }, eng);
 
   PerlinNoiseGenerationContinuation continuation{
+    .m_const_shared_data = std::unique_ptr<ConstSharedContinuationData>(new ConstSharedContinuationData{
+      .color0 = std::to_array(event.color0),
+      .color1 = std::to_array(event.color1),
+    }),
     .m_time_spent = 0,
     .m_real_time_spent = {},
     .m_noise = noise.get(),
@@ -123,12 +136,14 @@ void generate_perlin_noise_texture(flecs::world& ecs, const Menu::EventGenerateP
       .m_noise = noise.get(),
       .m_threads_finished = nullptr,
       .m_need_abort = nullptr,
+      .m_const_shared_data_ptr = nullptr
     },
     .m_columns_per_thread = event.size[0] / s_num_threads,
     .m_texture_width = event.size[0],
   };
   continuation.m_main_thread_info.m_threads_finished = continuation.m_threads_finished.get();
   continuation.m_main_thread_info.m_need_abort = continuation.m_need_abort.get();
+  continuation.m_main_thread_info.m_const_shared_data_ptr = continuation.m_const_shared_data.get();
 
   continuation.m_time_spent = std::clock() - startTime;
   continuation.m_real_time_spent = real_clock_t::now() - realStartTime;
@@ -150,12 +165,19 @@ static void do_perlin_generation(PerlinNoisePerThreadInfo& info, auto continueCa
   std::shared_lock lock(*texture.m_memory_bitmap_mutex);
   auto height = texture.height();
 
+  const auto& color0 = info.m_const_shared_data_ptr->color0;
+  const auto& color1 = info.m_const_shared_data_ptr->color1;
+
   auto bitmapOverride = texture.scoped_write_to_memory_bitmap();
   for (int& x = info.m_next_x; x < info.m_until_x; ++x) {
     for (int y = 0; y < height; ++y) {
       float value = (*info.m_noise)(float(x), float(y));
-      auto brightness = uint8_t(255.0f * value);
-      texture.set(x, y, al_map_rgb(brightness, brightness, brightness));
+
+      float r = interpolation::lerp(color0[0], color1[0], value);
+      float g = interpolation::lerp(color0[1], color1[1], value);
+      float b = interpolation::lerp(color0[2], color1[2], value);
+
+      texture.set(x, y, al_map_rgb_f(r, g, b));
     }
 
     if (!continueCallback()) {
@@ -194,7 +216,8 @@ static void init_perlin_noise_generation_threads(PerlinNoiseGenerationContinuati
       .m_until_x = calc_perlin_thread_finish(i, continuation.m_columns_per_thread, continuation.m_texture_width),
       .m_noise = continuation.m_noise,
       .m_threads_finished = continuation.m_threads_finished.get(),
-      .m_need_abort = continuation.m_need_abort.get()
+      .m_need_abort = continuation.m_need_abort.get(),
+      .m_const_shared_data_ptr = continuation.m_const_shared_data.get()
     };
     info("creating thread {}. Will work from {} to {}", i, newThreadInfo.m_next_x, newThreadInfo.m_until_x);
     continuation.m_additional_threads.emplace_back(additional_thread_perlin_func, newThreadInfo);

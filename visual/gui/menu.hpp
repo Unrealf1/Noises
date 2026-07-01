@@ -27,6 +27,8 @@ public:
     float grid_step[2] = {30.0f, 30.0f};
 
     float offset[2] = {0.0f, 0.0f};
+    float color0[3] = {0,0,0};
+    float color1[3] = {1,1,1};
     bool normalize_offsets = false;
     PerlinNoiseParameters::InterpolationAlgorithm interpolation_algorithm = PerlinNoiseParameters::InterpolationAlgorithm::bicubic;
     int random_seed = 0;
